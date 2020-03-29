@@ -230,6 +230,32 @@ public class LexicalAnalyzerGenerator {
                 continue;
             }
 
+            //positive closure
+            if(ch == '+'){
+                if(flag == false) {
+                    s = expression.substring(0, i);
+                    expression = expression.substring(i + 1, expression.length()).trim();
+                    values.add("positive");
+                    values.add(s);
+                    i = -1;
+                    continue;
+                }
+                flag = false;
+            }
+
+            //kleene closure
+            if(ch == '*'){
+                if(flag == false) {
+                    s = expression.substring(0, i);
+                    expression = expression.substring(i + 1, expression.length()).trim();
+                    values.add("kleene");
+                    values.add(s);
+                    i = -1;
+                    continue;
+                }
+                flag = false;
+            }
+
             // Concat
             if(ch==' '){
 

@@ -58,9 +58,26 @@ public class LexicalAnalyzerGenerator {
                         Stack s = new Stack();
                         s.push(keywords[i]);
                         nfas.put(keywords[i], buildNFA(s));
-                        System.out.println("Here at " + i + " " + keywords[i]);
+//                        System.out.println("Here at " + i + " " + keywords[i]);
                     }
                 }
+
+                //Punctuations
+                if(line.startsWith("[")){
+                    line=line.substring(1,line.length()-1);
+
+                    String[] punctuations = line.trim().split(" ");
+                    for (int i = 0; i < punctuations.length; i++) {
+                        Stack s = new Stack();
+                        if(punctuations[i].startsWith("\\")){
+                            punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
+                        }
+                        s.push(punctuations[i]);
+                        nfas.put(punctuations[i], buildNFA(s));
+//                        System.out.println("Here at " + i + " " + punctuations[i]);
+                    }
+                }
+
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -78,6 +95,7 @@ public class LexicalAnalyzerGenerator {
      * @return NFA
      */
     private NFA buildNFA(Stack stack) {
+        System.out.println();
         System.out.println("STACK");
         System.out.println(stack);
         return null;

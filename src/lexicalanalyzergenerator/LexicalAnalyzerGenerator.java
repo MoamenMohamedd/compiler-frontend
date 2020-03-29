@@ -1,9 +1,14 @@
 package lexicalanalyzergenerator;
 
+import javax.sound.midi.Soundbank;
+import javax.swing.*;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LexicalAnalyzerGenerator {
     private String pathToRules;
@@ -41,13 +46,16 @@ public class LexicalAnalyzerGenerator {
      */
     private HashMap<String, NFA> buildNFAs(File file) {
         HashMap<String, NFA> nfas = new HashMap<>();
+        String key;
+        String value;
+
         try {
             FileReader fileReader = new FileReader(file);
             BufferedReader bufferedReader = new BufferedReader(fileReader);
 
             String line;
             while((line = bufferedReader.readLine())!=null){
-                Stack st = new Stack();
+                Stack s = new Stack();
 
                 //Keywords
                 if(line.startsWith("{")){
@@ -55,11 +63,12 @@ public class LexicalAnalyzerGenerator {
 
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
-                        Stack s = new Stack();
+                        s.clear();
                         s.push(keywords[i]);
                         nfas.put(keywords[i], buildNFA(s));
 //                        System.out.println("Here at " + i + " " + keywords[i]);
                     }
+                    continue;
                 }
 
                 //Punctuations
@@ -68,7 +77,7 @@ public class LexicalAnalyzerGenerator {
 
                     String[] punctuations = line.trim().split(" ");
                     for (int i = 0; i < punctuations.length; i++) {
-                        Stack s = new Stack();
+                        s.clear();
                         if(punctuations[i].startsWith("\\")){
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
@@ -76,9 +85,50 @@ public class LexicalAnalyzerGenerator {
                         nfas.put(punctuations[i], buildNFA(s));
 //                        System.out.println("Here at " + i + " " + punctuations[i]);
                     }
+                    continue;
                 }
 
+                //Regular  expressions and regular definitions
+                for (int i = 0; i < line.length(); i++) {
+                    char ch = line.charAt(i);
+                    // Regular expression
+                    if(ch == ':'){
+                        int index = i;
+                        key = line.substring(0, index);
+                        value = line.substring(index + 1, line.length()).trim();
+                        Stack<String> regularExpression =  getRegularExpression(value);
+                        if(key.equals("relop")){
+                            for (int j = 0; j < regularExpression.size(); j++) {
+                                String regex = regularExpression.get(j);
+                                if(regex.equals("or")){
+                                    s.push("or");
+                                    continue;
+                                }
+                                regex = regex.replace("", " ").trim();
+                                Stack temp = getRegularExpression(regex);
+                                s.addAll(temp);
+                            }
+                            nfas.put(key, buildNFA(s));
+                            continue;
+                        }
+                        nfas.put(key, buildNFA(regularExpression));
+//                        System.out.println(key + "");
+//                        System.out.println(value);
+                    }
+                }
+
+                // Regular Definition
+//                if(ch == '='){
+//                    int index = i;
+//                    key = line.substring(0, index).trim();
+//                    value = line.substring(index + 1, line.length());
+//                    System.out.println(key + "");
+//                    System.out.println(value);
+//
+//                }
             }
+
+            fileReader.close();    //closes the stream and release the resources
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -98,6 +148,7 @@ public class LexicalAnalyzerGenerator {
         System.out.println();
         System.out.println("STACK");
         System.out.println(stack);
+        System.out.println("End Stack");
         return null;
     }
 
@@ -121,4 +172,78 @@ public class LexicalAnalyzerGenerator {
 
         return null;
     }
+
+
+    // Regular expression
+    private Stack<String> getRegularExpression(String expression){
+        Stack<String> values = new Stack<String>();
+        String s;
+
+
+        for (int i = 0; i < expression.length(); i++) {
+            char ch = expression.charAt(i);
+
+            // Check for the brackets
+            if(ch == '('){
+                int closeindex = expression.lastIndexOf(')');
+                if(closeindex == -1){
+                    System.out.println("Error in input file");
+                    System.exit(0);
+                }
+                char closure = expression.charAt(closeindex+1);
+                if(closure == '*'){
+                    values.add("kleene");
+                    expression = expression.substring(i+1,closeindex).trim();
+                }
+                else if(closure == '+'){
+                    values.add("positive");
+                    expression = expression.substring(i+1,closeindex).trim();
+                }
+                else{
+                    expression = expression.substring(i+1,closeindex).trim();
+                }
+                i = -1;
+                continue;
+            }
+            //The or regex
+            if(ch == '|'){
+                s = expression.substring(0, i);
+                expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
+                values.add("or");
+                values.add(s);
+                i = -1;
+                continue;
+            }
+            // Concat
+            if(ch==' '){
+                s = expression.substring(0, i);
+                //check if the concat is between two expressions
+                if(expression.substring(i,expression.length()).trim().startsWith("|")){
+                    continue;
+                }
+                expression = expression.substring(i,expression.length()).trim();
+                values.add("concat");
+                values.add(s);
+                i = -1;
+                continue;
+            }
+
+            if(ch == '\\'){
+                char nextchar = expression.charAt(i+1);
+
+                String start = expression.substring(0,i);
+                String end = expression.substring(i+1,expression.length());
+
+                expression = expression.substring(0, i) + expression.substring(i+1,expression.length());
+                expression = expression.trim();
+                i = -1;
+            }
+        }
+
+        values.add(expression);
+//        System.out.println(values);
+        return values;
+    }
+
+
 }

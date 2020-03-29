@@ -177,9 +177,9 @@ public class LexicalAnalyzerGenerator {
 
     // Regular expression
     private Stack<String> getRegularExpression(String expression){
-        Stack<String> values = new Stack<String>();
+        Stack<String> values = new Stack<>();
         String s;
-
+        boolean flag = false;
 
         for (int i = 0; i < expression.length(); i++) {
             char ch = expression.charAt(i);
@@ -191,16 +191,28 @@ public class LexicalAnalyzerGenerator {
                     System.out.println("Error in input file");
                     System.exit(0);
                 }
+                //Check if there is no closure
+                if(closeindex == expression.length()-1){
+                    //Check if it the expression doesnt start with a bracket
+                    //Concat the previous expression and the new one
+                    if(i!=0){
+                        s = expression.substring(0,i);
+                        values.add("concat");
+                        values.add(s);
+                    }
+                    expression = expression.substring(i+1,closeindex).trim();
+                    i = -1;
+                    continue;
+                }
                 char closure = expression.charAt(closeindex+1);
+                //Kleene closure on the bracket
                 if(closure == '*'){
                     values.add("kleene");
                     expression = expression.substring(i+1,closeindex).trim();
                 }
+                //Positive closure on the bracket
                 else if(closure == '+'){
                     values.add("positive");
-                    expression = expression.substring(i+1,closeindex).trim();
-                }
-                else{
                     expression = expression.substring(i+1,closeindex).trim();
                 }
                 i = -1;
@@ -211,15 +223,20 @@ public class LexicalAnalyzerGenerator {
                 s = expression.substring(0, i);
                 expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
                 values.add("or");
-                values.add(s);
+                if(s.length()!=0){
+                    values.add(s);
+                }
                 i = -1;
                 continue;
             }
+
             // Concat
             if(ch==' '){
+
                 s = expression.substring(0, i);
+                String temp = expression.substring(i,expression.length()).trim();
                 //check if the concat is between two expressions
-                if(expression.substring(i,expression.length()).trim().startsWith("|")){
+                if(temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*")){
                     continue;
                 }
                 expression = expression.substring(i,expression.length()).trim();
@@ -231,10 +248,14 @@ public class LexicalAnalyzerGenerator {
 
             if(ch == '\\'){
                 char nextchar = expression.charAt(i+1);
-
-                String start = expression.substring(0,i);
-                String end = expression.substring(i+1,expression.length());
-
+                if(nextchar == 'L'){
+                    expression = "epsilon" + expression.substring(i+2,expression.length());
+                    i = -1;
+                    continue;
+                }
+                else if(nextchar == '*' || nextchar == '+'){
+                    flag = true;
+                }
                 expression = expression.substring(0, i) + expression.substring(i+1,expression.length());
                 expression = expression.trim();
                 i = -1;

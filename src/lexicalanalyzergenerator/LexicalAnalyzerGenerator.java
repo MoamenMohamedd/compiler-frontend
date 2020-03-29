@@ -64,7 +64,8 @@ public class LexicalAnalyzerGenerator {
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
                         s.clear();
-                        s.push(keywords[i]);
+                        keywords[i] = keywords[i].replaceAll("", " ").trim();
+                        s = getRegularExpression(keywords[i]);
                         nfas.put(keywords[i], buildNFA(s));
 //                        System.out.println("Here at " + i + " " + keywords[i]);
                     }

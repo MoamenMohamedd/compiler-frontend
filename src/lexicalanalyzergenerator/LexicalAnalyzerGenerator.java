@@ -54,6 +54,8 @@ public class LexicalAnalyzerGenerator {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
 
             String line;
+            boolean deflag = false;
+
             while((line = bufferedReader.readLine())!=null){
                 Stack s = new Stack();
 
@@ -88,12 +90,13 @@ public class LexicalAnalyzerGenerator {
                     }
                     continue;
                 }
-
+                char prev = line.charAt(0);
                 //Regular  expressions and regular definitions
                 for (int i = 0; i < line.length(); i++) {
                     char ch = line.charAt(i);
                     // Regular expression
                     if(ch == ':'){
+                        deflag = true;
                         int index = i;
                         key = line.substring(0, index);
                         value = line.substring(index + 1, line.length()).trim();
@@ -114,9 +117,19 @@ public class LexicalAnalyzerGenerator {
                         }
                         nfas.put(key, buildNFA(regularExpression));
                     }
-                }
 
-                // Regular Definition
+                    // Regular Definition
+                    if(ch == '=' && prev!='\\' && deflag == false){
+                        System.out.println("DEFINITION");
+                        int index = i;
+                        key = line.substring(0, index);
+                        value = line.substring(index + 1, line.length()).trim();
+                        Stack<String> regularDefinition =  getRegularExpression(value);
+                        nfas.put(key, buildNFA(regularDefinition));
+                    }
+                }
+                deflag = false;
+
 //                if(ch == '='){
 //                    int index = i;
 //                    key = line.substring(0, index).trim();
@@ -233,12 +246,14 @@ public class LexicalAnalyzerGenerator {
                 if(flag == false) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
-                    if(expression.startsWith("|")){
-                        values.add("or");
-                        expression = expression.substring(1, expression.length()).trim();
-                    }
-                    else{
-                        values.add("concat");
+                    //check if there is anything after the positive closure
+                    if(expression.length()!=0) {
+                        if (expression.startsWith("|")) {
+                            values.add("or");
+                            expression = expression.substring(1, expression.length()).trim();
+                        } else {
+                            values.add("concat");
+                        }
                     }
                     values.add("positive");
                     values.add(s);
@@ -253,15 +268,34 @@ public class LexicalAnalyzerGenerator {
                 if(flag == false) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
-                    if(expression.startsWith("|")){
-                        values.add("or");
-                        expression = expression.substring(1, expression.length()).trim();
-                    }
-                    else{
-                        values.add("concat");
+                    if(expression !="") {
+                        if (expression.startsWith("|")) {
+                            values.add("or");
+                            expression = expression.substring(1, expression.length()).trim();
+                        } else {
+                            values.add("concat");
+                        }
                     }
                     values.add("kleene");
                     values.add(s);
+                    i = -1;
+                    continue;
+                }
+                flag = false;
+            }
+
+            // Range
+            if(ch == '-'){
+                if(flag == false) {
+                    char start = expression.charAt(0);
+                    expression = expression.substring(i+1,expression.length()).trim();
+                    char end = expression.charAt(0);
+                    String newexpression = "";
+                    for (int j = (byte)start; j < (byte)end; j++) {
+                        newexpression = newexpression + (char)j + "|";
+                    }
+                    newexpression = newexpression + end;
+                    expression = newexpression + expression.substring(1,expression.length());
                     i = -1;
                     continue;
                 }
@@ -274,7 +308,9 @@ public class LexicalAnalyzerGenerator {
                 s = expression.substring(0, i);
                 String temp = expression.substring(i,expression.length()).trim();
                 //check if the concat is between two expressions
-                if(temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*")){
+                if(temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*") || temp.startsWith("-")){
+                    expression = expression.substring(0,i) + expression.substring(i+1,expression.length());
+                    i--;
                     continue;
                 }
                 expression = expression.substring(i,expression.length()).trim();
@@ -291,7 +327,7 @@ public class LexicalAnalyzerGenerator {
                     i = -1;
                     continue;
                 }
-                else if(nextchar == '*' || nextchar == '+'){
+                else if(nextchar == '*' || nextchar == '+' || nextchar == '-'){
                     flag = true;
                 }
                 expression = expression.substring(0, i) + expression.substring(i+1,expression.length());
@@ -299,8 +335,9 @@ public class LexicalAnalyzerGenerator {
                 i = -1;
             }
         }
-
-        values.add(expression);
+        if(expression.length()!=0){
+            values.add(expression);
+        }
 //        System.out.println(values);
         return values;
     }

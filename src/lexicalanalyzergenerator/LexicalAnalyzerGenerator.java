@@ -113,8 +113,6 @@ public class LexicalAnalyzerGenerator {
                             continue;
                         }
                         nfas.put(key, buildNFA(regularExpression));
-//                        System.out.println(key + "");
-//                        System.out.println(value);
                     }
                 }
 
@@ -235,6 +233,13 @@ public class LexicalAnalyzerGenerator {
                 if(flag == false) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
+                    if(expression.startsWith("|")){
+                        values.add("or");
+                        expression = expression.substring(1, expression.length()).trim();
+                    }
+                    else{
+                        values.add("concat");
+                    }
                     values.add("positive");
                     values.add(s);
                     i = -1;
@@ -248,6 +253,13 @@ public class LexicalAnalyzerGenerator {
                 if(flag == false) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
+                    if(expression.startsWith("|")){
+                        values.add("or");
+                        expression = expression.substring(1, expression.length()).trim();
+                    }
+                    else{
+                        values.add("concat");
+                    }
                     values.add("kleene");
                     values.add(s);
                     i = -1;

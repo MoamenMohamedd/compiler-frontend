@@ -5,9 +5,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class NFA {
+public class NFA implements Cloneable {
+
     private static int counter = 1;
 
+    public Object clone() throws CloneNotSupportedException
+    {
+        return super.clone();
+    }
     class State {
         private int label;
         private List<Edge> edges;

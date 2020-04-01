@@ -78,7 +78,7 @@ public class LexicalAnalyzerGenerator {
                 if(line.startsWith("[")){
                     line=line.substring(1,line.length()-1);
 
-                    String[] punctuations = line.trim().split(" ");
+                    String[] punctuations = line.trim().split("(\\s\\\\|\\\\|\\s)");
                     for (int i = 0; i < punctuations.length; i++) {
                         s.clear();
                         if(punctuations[i].startsWith("\\")){
@@ -104,8 +104,8 @@ public class LexicalAnalyzerGenerator {
                         if(key.equals("relop")){
                             for (int j = 0; j < regularExpression.size(); j++) {
                                 String regex = regularExpression.get(j);
-                                if(regex.equals("or")){
-                                    s.push("or");
+                                if(regex.equals("or")||regex.length()==1||regex.equals("concat")){
+                                    s.push(regex);
                                     continue;
                                 }
                                 regex = regex.replace("", " ").trim();
@@ -116,6 +116,7 @@ public class LexicalAnalyzerGenerator {
                             continue;
                         }
                         nfas.put(key, buildNFA(regularExpression));
+                        break;
                     }
 
                     // Regular Definition
@@ -126,18 +127,10 @@ public class LexicalAnalyzerGenerator {
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularDefinition =  getRegularExpression(value);
                         nfas.put(key, buildNFA(regularDefinition));
+                        break;
                     }
                 }
                 deflag = false;
-
-//                if(ch == '='){
-//                    int index = i;
-//                    key = line.substring(0, index).trim();
-//                    value = line.substring(index + 1, line.length());
-//                    System.out.println(key + "");
-//                    System.out.println(value);
-//
-//                }
             }
 
             fileReader.close();    //closes the stream and release the resources
@@ -191,6 +184,7 @@ public class LexicalAnalyzerGenerator {
         Stack<String> values = new Stack<>();
         String s;
         boolean flag = false;
+        boolean operator = false;
 
         for (int i = 0; i < expression.length(); i++) {
             char ch = expression.charAt(i);
@@ -229,12 +223,30 @@ public class LexicalAnalyzerGenerator {
                 i = -1;
                 continue;
             }
+
+            //Extra closing bracket
+            if(ch==')'){
+                System.err.println("Error in rules");
+                System.exit(0);
+            }
+
             //The or regex
             if(ch == '|'){
+
                 s = expression.substring(0, i);
                 expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
                 values.add("or");
                 if(s.length()!=0){
+                    if(flag==true){
+                        String[] temp = s.split("");
+                        values.add("concat");
+                        for (int j = 0; j < temp.length; j++) {
+                            values.add(temp[j]);
+                        }
+                        flag = false;
+                        i = -1;
+                        continue;
+                    }
                     values.add(s);
                 }
                 i = -1;
@@ -260,7 +272,6 @@ public class LexicalAnalyzerGenerator {
                     i = -1;
                     continue;
                 }
-                flag = false;
             }
 
             //kleene closure
@@ -281,7 +292,6 @@ public class LexicalAnalyzerGenerator {
                     i = -1;
                     continue;
                 }
-                flag = false;
             }
 
             // Range
@@ -299,12 +309,11 @@ public class LexicalAnalyzerGenerator {
                     i = -1;
                     continue;
                 }
-                flag = false;
             }
 
             // Concat
             if(ch==' '){
-
+                // <\= | <   ---> < = | <
                 s = expression.substring(0, i);
                 String temp = expression.substring(i,expression.length()).trim();
                 //check if the concat is between two expressions
@@ -327,12 +336,36 @@ public class LexicalAnalyzerGenerator {
                     i = -1;
                     continue;
                 }
-                else if(nextchar == '*' || nextchar == '+' || nextchar == '-'){
+                else if(nextchar == '*' || nextchar == '+' || nextchar == '-' || nextchar == '=' || nextchar == ':'){
                     flag = true;
                 }
-                expression = expression.substring(0, i) + expression.substring(i+1,expression.length());
+                expression = expression.substring(0, i)  + expression.substring(i+1,expression.length());
                 expression = expression.trim();
-                i = -1;
+                i --;
+                continue;
+            }
+
+            if(flag == true){
+//                System.out.println("EXPRESSION");
+//                System.out.println("INDEX           "  + i);
+//                System.out.println(expression);
+                if(i > 0){
+//                    System.out.println(expression.substring(0,i));
+//                    System.out.println("AA");
+//                    System.out.println(expression.substring(i,i+1));
+                    s = expression.substring(0,i).trim();
+                    String op = expression.substring(i,i+1);
+                    String temp = expression.substring(i+1, expression.length()).trim();
+                    if(temp.startsWith("|")){
+                        continue;
+                    }
+                    expression = expression.substring(i+1, expression.length()).trim();
+                    values.add("concat");
+                    values.add(s);
+                    values.add(op);
+
+                }
+                flag = false;
             }
         }
         if(expression.length()!=0){

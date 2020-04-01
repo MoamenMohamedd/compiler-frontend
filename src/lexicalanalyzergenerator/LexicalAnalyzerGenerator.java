@@ -37,6 +37,15 @@ public class LexicalAnalyzerGenerator {
      */
     private HashMap<String, NFA> buildNFAs() {
         Map<String, NFA> tokenNFAs = new HashMap<>();
+
+        NFA nfa1 = new NFA('a');
+        NFA nfa2 = new NFA('b');
+
+//        NFA res = nfa1.concat(nfa2);
+        NFA res = nfa1.or(nfa2);
+
+        res.visualize();
+
         return null;
     }
 

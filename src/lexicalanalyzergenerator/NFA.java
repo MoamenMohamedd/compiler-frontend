@@ -1,7 +1,9 @@
 package lexicalanalyzergenerator;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class NFA {
     private static int counter = 1;
@@ -13,6 +15,8 @@ public class NFA {
         private boolean isFinal;
 
         public State(int label, boolean isStart, boolean isFinal) {
+            this.isStart = isStart;
+            this.isFinal = isFinal;
             this.label = label;
             edges = new ArrayList<>();
         }
@@ -23,7 +27,7 @@ public class NFA {
 
         @Override
         public boolean equals(Object obj) {
-            return this.label == ((State)obj).label;
+            return this.label == ((State) obj).label;
         }
     }
 
@@ -43,7 +47,6 @@ public class NFA {
 
     private State startState;
     private State finalState;
-    private ArrayList<State> internalStates; // States that are in between
 
     /**
      * When we create an NFA for the first time
@@ -52,11 +55,11 @@ public class NFA {
      *
      * @param input: char
      */
-    public NFA(char input){
-        startState = new State(counter++, true,false);
-        finalState = new State(counter++, false,true);
+    public NFA(char input) {
+        startState = new State(counter++, true, false);
+        finalState = new State(counter++, false, true);
 
-        startState.addEdge(finalState,input);
+        startState.addEdge(finalState, input);
     }
 
     /**
@@ -65,29 +68,16 @@ public class NFA {
      *
      * @param startState State
      * @param finalState State
-     * @param internalStates ArrayList<State>
      */
-    public NFA(State startState, State finalState, ArrayList<State> internalStates){
+    public NFA(State startState, State finalState) {
         this.startState = startState;
         this.finalState = finalState;
-        this.internalStates = internalStates;
     }
 
-
-    public State getStartState() {
-        return startState;
-    }
-
-    public State getFinalState() {
-        return finalState;
-    }
-
-    public ArrayList<State> getInternalStates() {
-        return internalStates;
-    }
 
     /**
      * Concatenates this NFA with another NFA
+     *
      * @param other: NFA
      * @return NFA
      */
@@ -99,23 +89,22 @@ public class NFA {
             edge.from = this.finalState;
         }
 
-        ArrayList<State> combinedInternalStates = new ArrayList<>();
-        combinedInternalStates.addAll(this.internalStates);
-        combinedInternalStates.addAll(other.internalStates);
+        this.finalState.edges = other.startState.edges;
 
-        NFA result = new NFA(this.startState,other.finalState,combinedInternalStates);
+        NFA result = new NFA(this.startState, other.finalState);
 
         return result;
     }
 
     /**
      * Applies or between this NFA and another NFA
+     *
      * @param other: NFA
      * @return NFA
      */
-    private NFA or(NFA other) {
-        State newStart = new State(counter++,true,false);
-        State newFinal = new State(counter++,false,true);
+    public NFA or(NFA other) {
+        State newStart = new State(counter++, true, false);
+        State newFinal = new State(counter++, false, true);
 
         this.startState.isStart = false;
         other.startState.isStart = false;
@@ -123,49 +112,66 @@ public class NFA {
         this.finalState.isFinal = false;
         other.finalState.isFinal = false;
 
-        newStart.addEdge(this.startState,'~'); // ~ is epsilon
-        newStart.addEdge(other.startState,'~');
+        newStart.addEdge(this.startState, '~'); // ~ is epsilon
+        newStart.addEdge(other.startState, '~');
 
-        this.finalState.addEdge(newFinal,'~');
-        other.finalState.addEdge(newFinal,'~');
+        this.finalState.addEdge(newFinal, '~');
+        other.finalState.addEdge(newFinal, '~');
 
-        ArrayList<State> combinedInternalStates = new ArrayList<>();
-        combinedInternalStates.addAll(this.internalStates);
-        combinedInternalStates.addAll(other.internalStates);
-
-        NFA result = new NFA(newStart,newFinal,combinedInternalStates);
+        NFA result = new NFA(newStart, newFinal);
 
         return result;
     }
 
     /**
      * Applies kleene closure to this NFA
+     *
      * @return NFA
      */
-    private NFA kleeneClosure() {
-        State newStart = new State(counter++,true,false);
-        State newFinal = new State(counter++,false,true);
+    public NFA kleeneClosure() {
+        State newStart = new State(counter++, true, false);
+        State newFinal = new State(counter++, false, true);
 
         this.startState.isStart = false;
         this.finalState.isFinal = false;
 
-        newStart.addEdge(this.startState,'~');
-        this.finalState.addEdge(newFinal,'~');
-        newStart.addEdge(newFinal,'~');
+        newStart.addEdge(this.startState, '~');
+        this.finalState.addEdge(newFinal, '~');
+        this.finalState.addEdge(this.startState, '~');
+        newStart.addEdge(newFinal, '~');
 
-        ArrayList<State> combinedInternalStates = new ArrayList<>();
-        combinedInternalStates.addAll(this.internalStates);
-
-        NFA result = new NFA(newStart,newFinal,combinedInternalStates);
+        NFA result = new NFA(newStart, newFinal);
 
         return result;
     }
 
     /**
      * Applies positive closure to this NFA
+     *
      * @return NFA
      */
-    private NFA positiveClosure() {
-        return null;
+    public NFA positiveClosure() {
+        return this.concat(this.kleeneClosure());
+    }
+
+    public void visualize() {
+        Set<State> visited = new HashSet<>();
+        visualize(this.startState, visited);
+    }
+
+    private void visualize(State state, Set<State> visited) {
+        if (visited.contains(state))
+            return;
+
+        if (state.edges.size() == 0)
+            System.out.println("(" + state.label + ")");
+
+        for (Edge edge : state.edges) {
+
+
+            System.out.print("(" + edge.from.label + ")" + "---" + (edge.input == '~' ? "ep":edge.input) + "-->");
+            visited.add(edge.from);
+            visualize(edge.to, visited);
+        }
     }
 }

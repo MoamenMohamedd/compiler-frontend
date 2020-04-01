@@ -26,6 +26,7 @@ public class NFA implements Cloneable {
         public void addEdge(State to, char input) {
             edges.add(new Edge(this, to, input));
         }
+//        public List<Edge> getEdges() { return edges;}
 
         @Override
         public boolean equals(Object obj) {

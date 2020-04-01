@@ -138,7 +138,7 @@ public class LexicalAnalyzerGenerator {
                 deflag = false;
             }
             System.out.println(nfas.toString());
-
+//            System.out.println(nfas.get("digit").ge);
             fileReader.close();    //closes the stream and release the resources
         } catch (FileNotFoundException e) {
             e.printStackTrace();

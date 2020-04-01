@@ -12,6 +12,10 @@ import java.util.regex.Pattern;
 
 public class LexicalAnalyzerGenerator {
     private String pathToRules;
+    private final int REG_DEF = 0;
+    private final int REG_EXP = 1;
+    private HashMap<String, NFA> keysToNFA = new HashMap<>();
+
 
     public LexicalAnalyzerGenerator(String pathToRules) {
         this.pathToRules = pathToRules;
@@ -66,9 +70,10 @@ public class LexicalAnalyzerGenerator {
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
                         s.clear();
-                        keywords[i] = keywords[i].replaceAll("", " ").trim();
+                        keywords[i] = keywords[i].replaceAll("", " ").trim().replaceAll(" ", "");
                         s = getRegularExpression(keywords[i]);
-                        nfas.put(keywords[i], buildNFA(s));
+//                        System.out.println("KEYWORDSS");
+                        nfas.put(keywords[i], buildNFA(s, REG_EXP, ""));
 //                        System.out.println("Here at " + i + " " + keywords[i]);
                     }
                     continue;
@@ -85,8 +90,8 @@ public class LexicalAnalyzerGenerator {
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
                         s.push(punctuations[i]);
-                        nfas.put(punctuations[i], buildNFA(s));
-//                        System.out.println("Here at " + i + " " + punctuations[i]);
+//                        System.out.println("Puncctt");
+                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, ""));
                     }
                     continue;
                 }
@@ -112,10 +117,10 @@ public class LexicalAnalyzerGenerator {
                                 Stack temp = getRegularExpression(regex);
                                 s.addAll(temp);
                             }
-                            nfas.put(key, buildNFA(s));
+                            nfas.put(key, buildNFA(s, REG_EXP, ""));
                             continue;
                         }
-                        nfas.put(key, buildNFA(regularExpression));
+                        nfas.put(key, buildNFA(regularExpression, REG_EXP, ""));
                         break;
                     }
 
@@ -123,20 +128,23 @@ public class LexicalAnalyzerGenerator {
                     if(ch == '=' && prev!='\\' && deflag == false){
                         System.out.println("DEFINITION");
                         int index = i;
-                        key = line.substring(0, index);
+                        key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularDefinition =  getRegularExpression(value);
-                        nfas.put(key, buildNFA(regularDefinition));
+                        nfas.put(key, buildNFA(regularDefinition, REG_DEF, key));
                         break;
                     }
                 }
                 deflag = false;
             }
+            System.out.println(nfas.toString());
 
             fileReader.close();    //closes the stream and release the resources
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
             e.printStackTrace();
         }
         Map<String, NFA> tokenNFAs = new HashMap<>();
@@ -149,12 +157,120 @@ public class LexicalAnalyzerGenerator {
      * @param stack: Sequence of operations to do inorder to reach the NFA
      * @return NFA
      */
-    private NFA buildNFA(Stack stack) {
+    private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
+
+//        Stack<NFA> builder = new Stack<>();
+//        System.out.println();
         System.out.println();
         System.out.println("STACK");
         System.out.println(stack);
         System.out.println("End Stack");
-        return null;
+
+        NFA nfa;
+
+        /* Regular Definition */
+        if (mode == REG_DEF) {
+
+            char op1, op2;
+            op1 = stack.pop().toString().charAt(0);
+            op2 = stack.pop().toString().charAt(0);
+            nfa = new NFA(op1);
+
+            while (!stack.empty()) {
+                String operation = stack.pop().toString();
+
+                /* or operation */
+                if (operation.equalsIgnoreCase("or")) {
+                    nfa.or(new NFA(op2));
+                }
+
+                /* concat operation */
+                else if (operation.equalsIgnoreCase("concat")) {
+                    nfa.concat(new NFA(op2));
+                }
+
+                /* kleene closure operation */
+                else if (operation.equalsIgnoreCase("kleene")) {
+                    nfa.kleeneClosure();
+                }
+
+                /* Extract the next operand from the stack if exists */
+                if (!stack.empty()) {
+                    op2 = stack.pop().toString().charAt(0);
+                }
+            }
+            keysToNFA.put(key, nfa);
+        }
+
+        /* Regular Expression */
+        else {
+
+            String op1, op2, operation;
+            op1 = stack.pop().toString();
+
+
+            if (keysToNFA.containsKey(op1))
+            {
+                nfa = (NFA)keysToNFA.get(op1).clone();
+            }
+            else
+            {
+                nfa = new NFA(op1.charAt(0));
+            }
+
+            if (stack.empty()) {
+                return nfa;
+            }
+
+            op2 = stack.pop().toString();
+
+            while (!stack.empty()) {
+
+                operation = stack.pop().toString();
+
+                /* or operation */
+                if (operation.equalsIgnoreCase("or")) {
+
+                    if (keysToNFA.containsKey(op2))
+                    {
+                        nfa.or((NFA)keysToNFA.get(op2).clone());
+                    }
+
+                    else
+                    {
+                        nfa.or(new NFA(op2.charAt(0)));
+                    }
+
+                }
+
+                /* concat operation */
+                else if (operation.equalsIgnoreCase("concat")) {
+
+                    if (keysToNFA.containsKey(op2))
+                    {
+                        nfa.concat((NFA)keysToNFA.get(op2).clone());
+                    }
+
+                    else
+                    {
+                        nfa.concat(new NFA(op2.charAt(0)));
+                    }
+
+                }
+
+                /* kleene closure operation */
+                else if (operation.equalsIgnoreCase("kleene")) {
+                    nfa.kleeneClosure();
+                }
+
+                /* Extract the next operand from the stack if exists */
+                if (!stack.empty()) {
+                    op2 = stack.pop().toString();
+                }
+            }
+        }
+
+        return nfa;
     }
 
 
@@ -237,7 +353,7 @@ public class LexicalAnalyzerGenerator {
                 expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
                 values.add("or");
                 if(s.length()!=0){
-                    if(flag==true){
+                    if(flag){
                         String[] temp = s.split("");
                         values.add("concat");
                         for (int j = 0; j < temp.length; j++) {
@@ -255,7 +371,7 @@ public class LexicalAnalyzerGenerator {
 
             //positive closure
             if(ch == '+'){
-                if(flag == false) {
+                if(!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
                     //check if there is anything after the positive closure
@@ -276,7 +392,7 @@ public class LexicalAnalyzerGenerator {
 
             //kleene closure
             if(ch == '*'){
-                if(flag == false) {
+                if(!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
                     if(expression !="") {
@@ -296,7 +412,7 @@ public class LexicalAnalyzerGenerator {
 
             // Range
             if(ch == '-'){
-                if(flag == false) {
+                if(!flag) {
                     char start = expression.charAt(0);
                     expression = expression.substring(i+1,expression.length()).trim();
                     char end = expression.charAt(0);
@@ -332,7 +448,7 @@ public class LexicalAnalyzerGenerator {
             if(ch == '\\'){
                 char nextchar = expression.charAt(i+1);
                 if(nextchar == 'L'){
-                    expression = "epsilon" + expression.substring(i+2,expression.length());
+                    expression = "~" + expression.substring(i+2,expression.length());
                     i = -1;
                     continue;
                 }
@@ -345,7 +461,7 @@ public class LexicalAnalyzerGenerator {
                 continue;
             }
 
-            if(flag == true){
+            if(flag){
 //                System.out.println("EXPRESSION");
 //                System.out.println("INDEX           "  + i);
 //                System.out.println(expression);

@@ -3,9 +3,14 @@ package lexicalanalyzergenerator;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NFA {
+public class NFA implements Cloneable {
+
     private static int counter = 1;
 
+    public Object clone() throws CloneNotSupportedException
+    {
+        return super.clone();
+    }
     class State {
         private int label;
         private List<Edge> edges;
@@ -16,6 +21,7 @@ public class NFA {
             this.label = label;
             edges = new ArrayList<>();
         }
+
 
         public void addEdge(State to, char input) {
             edges.add(new Edge(this, to, input));
@@ -43,7 +49,7 @@ public class NFA {
 
     private State startState;
     private State finalState;
-    private ArrayList<State> internalStates; // States that are in between
+    private ArrayList<State> internalStates = new ArrayList<>(); // States that are in between
 
     /**
      * When we create an NFA for the first time
@@ -113,7 +119,7 @@ public class NFA {
      * @param other: NFA
      * @return NFA
      */
-    private NFA or(NFA other) {
+    public NFA or(NFA other) {
         State newStart = new State(counter++,true,false);
         State newFinal = new State(counter++,false,true);
 
@@ -142,7 +148,7 @@ public class NFA {
      * Applies kleene closure to this NFA
      * @return NFA
      */
-    private NFA kleeneClosure() {
+    public NFA kleeneClosure() {
         State newStart = new State(counter++,true,false);
         State newFinal = new State(counter++,false,true);
 
@@ -165,7 +171,7 @@ public class NFA {
      * Applies positive closure to this NFA
      * @return NFA
      */
-    private NFA positiveClosure() {
+    public NFA positiveClosure() {
         return null;
     }
 }

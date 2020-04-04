@@ -3,10 +3,7 @@ package lexicalanalyzergenerator;
 import javax.sound.midi.Soundbank;
 import javax.swing.*;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +12,12 @@ public class LexicalAnalyzerGenerator {
     private final int REG_DEF = 0;
     private final int REG_EXP = 1;
     private HashMap<String, NFA> keysToNFA = new HashMap<>();
-
+    private final Set<String> actions = new HashSet<String>() {{
+        add("positive");
+        add("kleene");
+        add("concat");
+        add("or");
+    }};
 
     public LexicalAnalyzerGenerator(String pathToRules) {
         this.pathToRules = pathToRules;
@@ -125,11 +127,14 @@ public class LexicalAnalyzerGenerator {
                     }
 
                     // Regular Definition
-                    if(ch == '=' && prev!='\\' && deflag == false){
+                    if(ch == '=' && prev!='\\' && !deflag){
                         int index = i;
                         key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularDefinition =  getRegularExpression(value);
+                        System.out.println();
+                        System.out.println(key);
+                        System.out.println();
                         buildNFA(regularDefinition, REG_DEF, key);
                         break;
                     }
@@ -155,130 +160,246 @@ public class LexicalAnalyzerGenerator {
      */
     private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
 
-        NFA nfa;
+        Stack<NFA> operands = new Stack<>();
+
+        System.out.println(stack);
+        String input;
+        NFA nfa, nfa1, nfa2;
         boolean lastIsOr = false;
 
-        /* Regular Definition */
-        if (mode == REG_DEF) {
+        String op, operation;
+        input = stack.pop().toString();
 
-            char op1, op2;
-            op1 = stack.pop().toString().charAt(0);
-            op2 = stack.pop().toString().charAt(0);
-            nfa = new NFA(op1);
+        if (keysToNFA.containsKey(input))
+        {
+            nfa1 = (NFA)keysToNFA.get(input).clone();
+        }
+        else
+        {
+            nfa1 = new NFA(input.charAt(0));
+        }
 
-            while (!stack.empty()) {
-                String operation = stack.pop().toString();
+        operands.push(nfa1);
 
-                /* or operation */
-                if (operation.equalsIgnoreCase("or")) {
-                    nfa = nfa.or(new NFA(op2), lastIsOr);
-                    lastIsOr = true;
+        while (!stack.empty()) {
+
+            input = stack.pop().toString();
+
+            if (!actions.contains(input)) {
+
+                if (keysToNFA.containsKey(input)) {
+                    nfa1 = (NFA) keysToNFA.get(input).clone();
+                } else {
+                    nfa1 = new NFA(input.charAt(0));
                 }
 
-                else {
+                operands.push(nfa1);
+            }
+            else {
+
+                /* or operation */
+                if (input.equalsIgnoreCase("or")) {
+
+                    nfa1 = operands.pop();
+                    nfa2 = operands.pop();
+                    nfa1 = nfa1.or(nfa2, lastIsOr);
+                    operands.push(nfa1);
+                    lastIsOr = true;
+
+                } else {
+
                     /* concat operation */
-                    if (operation.equalsIgnoreCase("concat")) {
-                        nfa = nfa.concat(new NFA(op2));
+                    if (input.equalsIgnoreCase("concat")) {
+                        nfa1 = operands.pop();
+                        nfa2 = operands.pop();
+                        nfa1 = nfa1.concat(nfa2);
+                        operands.push(nfa1);
                     }
 
                     /* kleene closure operation */
-                    else if (operation.equalsIgnoreCase("kleene")) {
-                        nfa = nfa.kleeneClosure();
+                    else if (input.equalsIgnoreCase("kleene")) {
+                        nfa1 = operands.pop();
+                        nfa1 = nfa1.kleeneClosure();
+                        operands.push(nfa1);
                     }
 
                     /* positive closure operation */
-                    else if (operation.equalsIgnoreCase("positive")) {
-                        nfa = nfa.positiveClosure();
+                    else if (input.equalsIgnoreCase("positive")) {
+                        nfa1 = operands.pop();
+                        nfa1 = nfa1.positiveClosure();
+                        operands.push(nfa1);
                     }
 
                     lastIsOr = false;
                 }
-
-                /* Extract the next operand from the stack if exists */
-                if (!stack.empty()) {
-                    op2 = stack.pop().toString().charAt(0);
-                }
             }
+        }
+        System.out.println(NFA.counter);
+        nfa = operands.pop();
+
+        if (mode == REG_DEF) {
             keysToNFA.put(key, nfa);
         }
+        nfa.visualizegraph();
 
-        /* Regular Expression */
-        else {
-
-            String op1, op2, operation;
-            op1 = stack.pop().toString();
-
-
-            if (keysToNFA.containsKey(op1))
-            {
-                nfa = (NFA)keysToNFA.get(op1).clone();
-            }
-            else
-            {
-                nfa = new NFA(op1.charAt(0));
-            }
-
-            if (stack.empty()) {
-                return nfa;
-            }
-
-            op2 = stack.pop().toString();
-
-            while (!stack.empty()) {
-
-                operation = stack.pop().toString();
-
-                /* or operation */
-                if (operation.equalsIgnoreCase("or")) {
-
-                    if (keysToNFA.containsKey(op2))
-                    {
-                        nfa = nfa.or((NFA)keysToNFA.get(op2).clone(), lastIsOr);
-                    }
-
-                    else
-                    {
-                        nfa = nfa.or(new NFA(op2.charAt(0)), lastIsOr);
-                    }
-                    lastIsOr = true;
-                }
-
-                else {
-
-                    /* concat operation */
-                    if (operation.equalsIgnoreCase("concat")) {
-
-                        if (keysToNFA.containsKey(op2)) {
-                            nfa = nfa.concat((NFA) keysToNFA.get(op2).clone());
-                        } else {
-                            nfa = nfa.concat(new NFA(op2.charAt(0)));
-                        }
-
-                    }
-
-                    /* kleene closure operation */
-                    else if (operation.equalsIgnoreCase("kleene")) {
-                        nfa = nfa.kleeneClosure();
-                    }
-
-                    /* positive closure operation */
-                    else if (operation.equalsIgnoreCase("positive")) {
-                        nfa = nfa.positiveClosure();
-                    }
-
-                    lastIsOr = false;
-                }
-
-                /* Extract the next operand from the stack if exists */
-                if (!stack.empty()) {
-                    op2 = stack.pop().toString();
-                }
-            }
-        }
         nfa.getFinalState().setToken(key);
         return nfa;
     }
-
+//    private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
+//
+//        NFA nfa;
+//        boolean lastIsOr = false;
+//
+//        /* The stack has definition and operation only */
+//        if (stack.size() == 2) {
+//
+//            String op, operation;
+//            op = stack.pop().toString();
+//
+//
+//            if (keysToNFA.containsKey(op))
+//            {
+//                nfa = (NFA)keysToNFA.get(op).clone();
+//            }
+//            else
+//            {
+//                nfa = new NFA(op.charAt(0));
+//            }
+//
+//            operation = stack.pop().toString();
+//
+//            /* kleene closure operation */
+//            if (operation.equalsIgnoreCase("kleene")) {
+//                nfa = nfa.kleeneClosure();
+//            }
+//
+//            /* positive closure operation */
+//            else if (operation.equalsIgnoreCase("positive")) {
+//                nfa = nfa.positiveClosure();
+//            }
+//        }
+//
+//        /* Regular Definition */
+//        else if (mode == REG_DEF) {
+//
+//            char op1, op2;
+//            op1 = stack.pop().toString().charAt(0);
+//
+//            op2 = stack.pop().toString().charAt(0);
+//            nfa = new NFA(op1);
+//
+//            while (!stack.empty()) {
+//                String operation = stack.pop().toString();
+//
+//                /* or operation */
+//                if (operation.equalsIgnoreCase("or")) {
+//                    nfa = nfa.or(new NFA(op2), lastIsOr);
+//                    lastIsOr = true;
+//                }
+//
+//                else {
+//                    /* concat operation */
+//                    if (operation.equalsIgnoreCase("concat")) {
+//                        nfa = nfa.concat(new NFA(op2));
+//                    }
+//
+//                    /* kleene closure operation */
+//                    else if (operation.equalsIgnoreCase("kleene")) {
+//                        nfa = nfa.kleeneClosure();
+//                    }
+//
+//                    /* positive closure operation */
+//                    else if (operation.equalsIgnoreCase("positive")) {
+//                        nfa = nfa.positiveClosure();
+//                    }
+//
+//                    lastIsOr = false;
+//                }
+//
+//                /* Extract the next operand from the stack if exists */
+//                if (!stack.empty()) {
+//                    op2 = stack.pop().toString().charAt(0);
+//                }
+//            }
+//            keysToNFA.put(key, nfa);
+//        }
+//
+//        /* Regular Expression */
+//        else {
+//
+//            String op1, op2, operation;
+//            op1 = stack.pop().toString();
+//
+//
+//            if (keysToNFA.containsKey(op1))
+//            {
+//                nfa = (NFA)keysToNFA.get(op1).clone();
+//            }
+//            else
+//            {
+//                nfa = new NFA(op1.charAt(0));
+//            }
+//
+//            if (stack.empty()) {
+//                return nfa;
+//            }
+//
+//            op2 = stack.pop().toString();
+//
+//            while (!stack.empty()) {
+//
+//                operation = stack.pop().toString();
+//
+//                /* or operation */
+//                if (operation.equalsIgnoreCase("or")) {
+//
+//                    if (keysToNFA.containsKey(op2))
+//                    {
+//                        nfa = nfa.or((NFA)keysToNFA.get(op2).clone(), lastIsOr);
+//                    }
+//
+//                    else
+//                    {
+//                        nfa = nfa.or(new NFA(op2.charAt(0)), lastIsOr);
+//                    }
+//                    lastIsOr = true;
+//                }
+//
+//                else {
+//
+//                    /* concat operation */
+//                    if (operation.equalsIgnoreCase("concat")) {
+//
+//                        if (keysToNFA.containsKey(op2)) {
+//                            nfa = nfa.concat((NFA) keysToNFA.get(op2).clone());
+//                        } else {
+//                            nfa = nfa.concat(new NFA(op2.charAt(0)));
+//                        }
+//
+//                    }
+//
+//                    /* kleene closure operation */
+//                    else if (operation.equalsIgnoreCase("kleene")) {
+//                        nfa = nfa.kleeneClosure();
+//                    }
+//
+//                    /* positive closure operation */
+//                    else if (operation.equalsIgnoreCase("positive")) {
+//                        nfa = nfa.positiveClosure();
+//                    }
+//
+//                    lastIsOr = false;
+//                }
+//
+//                /* Extract the next operand from the stack if exists */
+//                if (!stack.empty()) {
+//                    op2 = stack.pop().toString();
+//                }
+//            }
+//        }
+//        nfa.getFinalState().setToken(key);
+//        return nfa;
+//    }
 
 
     private DFA convertToDFA(NFA.State startState) {

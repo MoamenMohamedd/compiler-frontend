@@ -168,7 +168,9 @@ public class NFA implements Cloneable {
             NFA result = new NFA(newStart, newFinal);
 
             return result;
+
         } else {
+
             this.startState.addEdge(other.startState, '~');
             other.finalState.addEdge(this.finalState, '~');
             other.startState.isStart = false;
@@ -215,10 +217,8 @@ public class NFA implements Cloneable {
         this.finalState.addEdge(this.startState, '~');
         newStart.addEdge(newFinal, '~');
 
-
         NFA result = new NFA(newStart, newFinal);
-
-
+        System.out.println("START === " + result.startState.label);
         return result;
     }
 
@@ -253,6 +253,28 @@ public class NFA implements Cloneable {
             visited.add(edge.from);
             visualize(edge.to, visited);
         }
+    }
+
+    public void visualizegraph() {
+        Set<State> visited = new HashSet<>();
+        visualizegraph(this.startState, visited);
+    }
+
+
+    private void visualizegraph(State state, Set<State> visited) {
+
+        if (visited.contains(state))
+            return;
+
+//        if (state.edges.size() == 0)
+//            System.out.println(state.label);
+
+        for (Edge edge : state.edges) {
+            System.out.println(edge.from.label + " " +  edge.to.label + " " + (edge.input == '~' ? "ep" : edge.input) + " ");
+            visited.add(edge.from);
+            visualizegraph(edge.to, visited);
+        }
 
     }
+
 }

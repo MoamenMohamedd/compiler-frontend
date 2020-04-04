@@ -30,7 +30,7 @@ public class LexicalAnalyzerGenerator {
         Map<String, NFA> tokenNFAs = buildNFAs(file);
 
         // Combine NFAs
-        NFA combinedNFA = combineNFAs(tokenNFAs);
+        NFA.State combinedNFA = NFA.combineNFAs(new ArrayList<>(tokenNFAs.values()));
 
         // Convert combined NFA to DFA
         DFA dfa = convertToDFA(combinedNFA);
@@ -70,11 +70,9 @@ public class LexicalAnalyzerGenerator {
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
                         s.clear();
-                        keywords[i] = keywords[i].replaceAll("", " ").trim().replaceAll(" ", "");
+                        keywords[i] = keywords[i].replaceAll("", " ").trim();
                         s = getRegularExpression(keywords[i]);
-//                        System.out.println("KEYWORDSS");
-                        nfas.put(keywords[i], buildNFA(s, REG_EXP, ""));
-//                        System.out.println("Here at " + i + " " + keywords[i]);
+                        nfas.put(keywords[i], buildNFA(s, REG_EXP, keywords[i].replaceAll(" ", "")));
                     }
                     continue;
                 }
@@ -90,12 +88,13 @@ public class LexicalAnalyzerGenerator {
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
                         s.push(punctuations[i]);
-//                        System.out.println("Puncctt");
-                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, ""));
+                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, punctuations[i].trim().replaceAll(" ", "")));
                     }
                     continue;
                 }
+
                 char prev = line.charAt(0);
+
                 //Regular  expressions and regular definitions
                 for (int i = 0; i < line.length(); i++) {
                     char ch = line.charAt(i);
@@ -103,7 +102,7 @@ public class LexicalAnalyzerGenerator {
                     if(ch == ':'){
                         deflag = true;
                         int index = i;
-                        key = line.substring(0, index);
+                        key = line.substring(0, index).trim().replaceAll(" ", "");
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularExpression =  getRegularExpression(value);
                         if(key.equals("relop")){
@@ -117,28 +116,26 @@ public class LexicalAnalyzerGenerator {
                                 Stack temp = getRegularExpression(regex);
                                 s.addAll(temp);
                             }
-                            nfas.put(key, buildNFA(s, REG_EXP, ""));
+
+                            nfas.put(key, buildNFA(s, REG_EXP, key));
                             continue;
                         }
-                        nfas.put(key, buildNFA(regularExpression, REG_EXP, ""));
+                        nfas.put(key, buildNFA(regularExpression, REG_EXP, key));
                         break;
                     }
 
                     // Regular Definition
                     if(ch == '=' && prev!='\\' && deflag == false){
-                        System.out.println("DEFINITION");
                         int index = i;
                         key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularDefinition =  getRegularExpression(value);
-                        nfas.put(key, buildNFA(regularDefinition, REG_DEF, key));
+                        buildNFA(regularDefinition, REG_DEF, key);
                         break;
                     }
                 }
                 deflag = false;
             }
-            System.out.println(nfas.toString());
-//            System.out.println(nfas.get("digit").ge);
             fileReader.close();    //closes the stream and release the resources
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -147,17 +144,7 @@ public class LexicalAnalyzerGenerator {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Map<String, NFA> tokenNFAs = new HashMap<>();
-
-        NFA nfa1 = new NFA('a');
-        NFA nfa2 = new NFA('b');
-
-//        NFA res = nfa1.concat(nfa2);
-        NFA res = nfa1.or(nfa2);
-
-        res.visualize();
-
-        return null;
+        return nfas;
     }
 
     /**
@@ -168,14 +155,8 @@ public class LexicalAnalyzerGenerator {
      */
     private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
 
-//        Stack<NFA> builder = new Stack<>();
-//        System.out.println();
-        System.out.println();
-        System.out.println("STACK");
-        System.out.println(stack);
-        System.out.println("End Stack");
-
         NFA nfa;
+        boolean lastIsOr = false;
 
         /* Regular Definition */
         if (mode == REG_DEF) {
@@ -190,17 +171,27 @@ public class LexicalAnalyzerGenerator {
 
                 /* or operation */
                 if (operation.equalsIgnoreCase("or")) {
-                    nfa.or(new NFA(op2));
+                    nfa = nfa.or(new NFA(op2), lastIsOr);
+                    lastIsOr = true;
                 }
 
-                /* concat operation */
-                else if (operation.equalsIgnoreCase("concat")) {
-                    nfa.concat(new NFA(op2));
-                }
+                else {
+                    /* concat operation */
+                    if (operation.equalsIgnoreCase("concat")) {
+                        nfa = nfa.concat(new NFA(op2));
+                    }
 
-                /* kleene closure operation */
-                else if (operation.equalsIgnoreCase("kleene")) {
-                    nfa.kleeneClosure();
+                    /* kleene closure operation */
+                    else if (operation.equalsIgnoreCase("kleene")) {
+                        nfa = nfa.kleeneClosure();
+                    }
+
+                    /* positive closure operation */
+                    else if (operation.equalsIgnoreCase("positive")) {
+                        nfa = nfa.positiveClosure();
+                    }
+
+                    lastIsOr = false;
                 }
 
                 /* Extract the next operand from the stack if exists */
@@ -242,34 +233,40 @@ public class LexicalAnalyzerGenerator {
 
                     if (keysToNFA.containsKey(op2))
                     {
-                        nfa.or((NFA)keysToNFA.get(op2).clone());
+                        nfa = nfa.or((NFA)keysToNFA.get(op2).clone(), lastIsOr);
                     }
 
                     else
                     {
-                        nfa.or(new NFA(op2.charAt(0)));
+                        nfa = nfa.or(new NFA(op2.charAt(0)), lastIsOr);
                     }
-
+                    lastIsOr = true;
                 }
 
-                /* concat operation */
-                else if (operation.equalsIgnoreCase("concat")) {
+                else {
 
-                    if (keysToNFA.containsKey(op2))
-                    {
-                        nfa.concat((NFA)keysToNFA.get(op2).clone());
+                    /* concat operation */
+                    if (operation.equalsIgnoreCase("concat")) {
+
+                        if (keysToNFA.containsKey(op2)) {
+                            nfa = nfa.concat((NFA) keysToNFA.get(op2).clone());
+                        } else {
+                            nfa = nfa.concat(new NFA(op2.charAt(0)));
+                        }
+
                     }
 
-                    else
-                    {
-                        nfa.concat(new NFA(op2.charAt(0)));
+                    /* kleene closure operation */
+                    else if (operation.equalsIgnoreCase("kleene")) {
+                        nfa = nfa.kleeneClosure();
                     }
 
-                }
+                    /* positive closure operation */
+                    else if (operation.equalsIgnoreCase("positive")) {
+                        nfa = nfa.positiveClosure();
+                    }
 
-                /* kleene closure operation */
-                else if (operation.equalsIgnoreCase("kleene")) {
-                    nfa.kleeneClosure();
+                    lastIsOr = false;
                 }
 
                 /* Extract the next operand from the stack if exists */
@@ -278,23 +275,13 @@ public class LexicalAnalyzerGenerator {
                 }
             }
         }
-
+        nfa.getFinalState().setToken(key);
         return nfa;
     }
 
 
-    /**
-     * Combines all NFAs
-     *
-     * @param tokensNFA: Map of key value pairs. The key denotes the token that this NFA matches
-     *                   while the value denotes the NFA
-     * @return
-     */
-    private NFA combineNFAs(Map<String, NFA> tokensNFA) {
-        return null;
-    }
 
-    private DFA convertToDFA(NFA nfa) {
+    private DFA convertToDFA(NFA.State startState) {
         return null;
     }
 

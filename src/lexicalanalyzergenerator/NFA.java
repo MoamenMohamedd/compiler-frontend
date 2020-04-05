@@ -1,57 +1,14 @@
 package lexicalanalyzergenerator;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-public class NFA implements Cloneable {
+public class NFA extends TransitionTable {
 
     private static int counter = 1;
 
-    public Object clone() throws CloneNotSupportedException
-    {
-        return super.clone();
-    }
-    class State {
-        private int label;
-        private List<Edge> edges;
-        private boolean isStart;
-        private boolean isFinal;
-
-        public State(int label, boolean isStart, boolean isFinal) {
-            this.isStart = isStart;
-            this.isFinal = isFinal;
-            this.label = label;
-            edges = new ArrayList<>();
-        }
-
-        public void addEdge(State to, char input) {
-            edges.add(new Edge(this, to, input));
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return this.label == ((State) obj).label;
-        }
-    }
-
-    class Edge {
-        private State from;
-        private State to;
-        char input;
-
-        public Edge(State from, State to, char input) {
-            this.from = from;
-            this.to = to;
-            this.input = input;
-        }
-
-
-    }
-
     private State startState;
-    private State finalState;
+    private ArrayList<State> finalStates;
+    private ArrayList<State> states;
 
     /**
      * When we create an NFA for the first time
@@ -61,24 +18,26 @@ public class NFA implements Cloneable {
      * @param input: char
      */
     public NFA(char input) {
-        startState = new State(counter++, true, false);
-        finalState = new State(counter++, false, true);
+        this.startState = new State(counter++, true, false);
+        State finalState = new State(counter++, false, true);
 
         startState.addEdge(finalState, input);
+
+        finalStates = new ArrayList<>();
+        finalStates.add(finalState);
     }
 
     /**
      * This constructor is used when we create a resultant of
      * doing an operation on two NFAs
      *
-     * @param startState State
-     * @param finalState State
+     * @param startState  State
+     * @param finalStates ArrayList<State>
      */
-    public NFA(State startState, State finalState) {
+    public NFA(State startState, ArrayList<State> finalStates) {
         this.startState = startState;
-        this.finalState = finalState;
+        this.finalStates = new ArrayList<>(finalStates);
     }
-
 
     /**
      * Concatenates this NFA with another NFA
@@ -87,19 +46,46 @@ public class NFA implements Cloneable {
      * @return NFA
      */
     public NFA concat(NFA other) {
-        other.startState.isStart = false;
-        this.finalState.isFinal = false;
+        other.startState.setStart(false);
+        this.finalStates.get(0).setFinal(false);
 
-        for (Edge edge : other.startState.edges) {
-            edge.from = this.finalState;
+        for (Edge edge : other.startState.getEdges()) {
+            edge.setFrom(this.finalStates.get(0));
         }
 
-        this.finalState.edges = other.startState.edges;
+        this.finalStates.get(0).setEdges(other.startState.getEdges());
+        other.startState = null;
 
-        NFA result = new NFA(this.startState, other.finalState);
+        NFA result = new NFA(this.startState, other.finalStates);
 
         return result;
     }
+
+
+    /**
+     * Applies positive closure to this NFA
+     *
+     * @return NFA
+     */
+    public NFA positiveClosure() {
+        State newStart = new State(counter++, true, false);
+        State newFinal = new State(counter++, false, true);
+
+        this.startState.setStart(false);
+        this.finalStates.get(0).setFinal(false);
+
+        newStart.addEdge(this.startState, '~');
+        this.finalStates.get(0).addEdge(newFinal, '~');
+        this.finalStates.get(0).addEdge(this.startState, '~');
+
+        ArrayList<State> newFinalStates = new ArrayList<>();
+        newFinalStates.add(newFinal);
+
+        NFA result = new NFA(newStart, newFinalStates);
+
+        return result;
+    }
+
 
     /**
      * Applies or between this NFA and another NFA
@@ -111,19 +97,23 @@ public class NFA implements Cloneable {
         State newStart = new State(counter++, true, false);
         State newFinal = new State(counter++, false, true);
 
-        this.startState.isStart = false;
-        other.startState.isStart = false;
+        this.startState.setStart(false);
+        other.startState.setStart(false);
 
-        this.finalState.isFinal = false;
-        other.finalState.isFinal = false;
+        this.finalStates.get(0).setFinal(true);
+        other.finalStates.get(0).setFinal(true);
 
         newStart.addEdge(this.startState, '~'); // ~ is epsilon
         newStart.addEdge(other.startState, '~');
 
-        this.finalState.addEdge(newFinal, '~');
-        other.finalState.addEdge(newFinal, '~');
+        this.finalStates.get(0).addEdge(newFinal, '~');
+        other.finalStates.get(0).addEdge(newFinal, '~');
 
-        NFA result = new NFA(newStart, newFinal);
+
+        ArrayList<State> newFinalStates = new ArrayList<>();
+        newFinalStates.add(newFinal);
+
+        NFA result = new NFA(newStart, newFinalStates);
 
         return result;
     }
@@ -137,46 +127,35 @@ public class NFA implements Cloneable {
         State newStart = new State(counter++, true, false);
         State newFinal = new State(counter++, false, true);
 
-        this.startState.isStart = false;
-        this.finalState.isFinal = false;
+        this.startState.setStart(false);
+        this.finalStates.get(0).setFinal(false);
 
         newStart.addEdge(this.startState, '~');
-        this.finalState.addEdge(newFinal, '~');
-        this.finalState.addEdge(this.startState, '~');
+        this.finalStates.get(0).addEdge(newFinal, '~');
+        this.finalStates.get(0).addEdge(this.startState, '~');
         newStart.addEdge(newFinal, '~');
 
-        NFA result = new NFA(newStart, newFinal);
+        ArrayList<State> newFinalStates = new ArrayList<>();
+        newFinalStates.add(newFinal);
+
+        NFA result = new NFA(newStart, newFinalStates);
 
         return result;
     }
 
-    /**
-     * Applies positive closure to this NFA
-     *
-     * @return NFA
-     */
-    public NFA positiveClosure() {
-        return this.concat(this.kleeneClosure());
+    public State getStartState() {
+        return startState;
     }
 
-    public void visualize() {
-        Set<State> visited = new HashSet<>();
-        visualize(this.startState, visited);
+    public ArrayList<State> getFinalStates() {
+        return finalStates;
     }
 
-    private void visualize(State state, Set<State> visited) {
-        if (visited.contains(state))
-            return;
-
-        if (state.edges.size() == 0)
-            System.out.println("(" + state.label + ")");
-
-        for (Edge edge : state.edges) {
-
-
-            System.out.print("(" + edge.from.label + ")" + "---" + (edge.input == '~' ? "ep":edge.input) + "-->");
-            visited.add(edge.from);
-            visualize(edge.to, visited);
-        }
+    public void print() {
+        System.out.println("----------------------------------------");
+        super.print(startState, new HashSet<>());
+        System.out.println("----------------------------------------");
     }
+
+
 }

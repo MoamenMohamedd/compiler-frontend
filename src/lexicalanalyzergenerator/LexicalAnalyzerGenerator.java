@@ -23,23 +23,21 @@ public class LexicalAnalyzerGenerator {
 
 
     public LexicalAnalyzer getLexicalAnalyzer() {
+
         System.out.println(this.pathToRules);
         File file = new File(this.pathToRules);
 
         // Build NFAs
         Map<String, NFA> tokenNFAs = buildNFAs(file);
 
-        // Combine NFAs
-        NFA combinedNFA = combineNFAs(tokenNFAs);
+        // Convert to DFA
+        NFA nfa = combineNFAs();
 
-        // Convert combined NFA to DFA
-        DFA dfa = convertToDFA(combinedNFA);
+        DFA dfa = new DFA(nfa);
 
-        // Minimize DFA
-        DFA minimizedDFA = minimizeDFA(dfa);
-
-        return new LexicalAnalyzer(minimizedDFA);
+        return new LexicalAnalyzer(dfa);
     }
+
 
     /**
      * Reads input file (lexical rules) and
@@ -60,12 +58,12 @@ public class LexicalAnalyzerGenerator {
             String line;
             boolean deflag = false;
 
-            while((line = bufferedReader.readLine())!=null){
+            while ((line = bufferedReader.readLine()) != null) {
                 Stack s = new Stack();
 
                 //Keywords
-                if(line.startsWith("{")){
-                    line=line.substring(1,line.length()-1);
+                if (line.startsWith("{")) {
+                    line = line.substring(1, line.length() - 1);
 
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
@@ -80,13 +78,13 @@ public class LexicalAnalyzerGenerator {
                 }
 
                 //Punctuations
-                if(line.startsWith("[")){
-                    line=line.substring(1,line.length()-1);
+                if (line.startsWith("[")) {
+                    line = line.substring(1, line.length() - 1);
 
                     String[] punctuations = line.trim().split("(\\s\\\\|\\\\|\\s)");
                     for (int i = 0; i < punctuations.length; i++) {
                         s.clear();
-                        if(punctuations[i].startsWith("\\")){
+                        if (punctuations[i].startsWith("\\")) {
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
                         s.push(punctuations[i]);
@@ -100,16 +98,16 @@ public class LexicalAnalyzerGenerator {
                 for (int i = 0; i < line.length(); i++) {
                     char ch = line.charAt(i);
                     // Regular expression
-                    if(ch == ':'){
+                    if (ch == ':') {
                         deflag = true;
                         int index = i;
                         key = line.substring(0, index);
                         value = line.substring(index + 1, line.length()).trim();
-                        Stack<String> regularExpression =  getRegularExpression(value);
-                        if(key.equals("relop")){
+                        Stack<String> regularExpression = getRegularExpression(value);
+                        if (key.equals("relop")) {
                             for (int j = 0; j < regularExpression.size(); j++) {
                                 String regex = regularExpression.get(j);
-                                if(regex.equals("or")||regex.length()==1||regex.equals("concat")){
+                                if (regex.equals("or") || regex.length() == 1 || regex.equals("concat")) {
                                     s.push(regex);
                                     continue;
                                 }
@@ -125,12 +123,12 @@ public class LexicalAnalyzerGenerator {
                     }
 
                     // Regular Definition
-                    if(ch == '=' && prev!='\\' && deflag == false){
+                    if (ch == '=' && prev != '\\' && deflag == false) {
                         System.out.println("DEFINITION");
                         int index = i;
                         key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
-                        Stack<String> regularDefinition =  getRegularExpression(value);
+                        Stack<String> regularDefinition = getRegularExpression(value);
                         nfas.put(key, buildNFA(regularDefinition, REG_DEF, key));
                         break;
                     }
@@ -149,13 +147,6 @@ public class LexicalAnalyzerGenerator {
         }
         Map<String, NFA> tokenNFAs = new HashMap<>();
 
-        NFA nfa1 = new NFA('a');
-        NFA nfa2 = new NFA('b');
-
-//        NFA res = nfa1.concat(nfa2);
-        NFA res = nfa1.or(nfa2);
-
-        res.visualize();
 
         return null;
     }
@@ -218,12 +209,9 @@ public class LexicalAnalyzerGenerator {
             op1 = stack.pop().toString();
 
 
-            if (keysToNFA.containsKey(op1))
-            {
-                nfa = (NFA)keysToNFA.get(op1).clone();
-            }
-            else
-            {
+            if (keysToNFA.containsKey(op1)) {
+                nfa = (NFA) keysToNFA.get(op1).clone();
+            } else {
                 nfa = new NFA(op1.charAt(0));
             }
 
@@ -240,13 +228,9 @@ public class LexicalAnalyzerGenerator {
                 /* or operation */
                 if (operation.equalsIgnoreCase("or")) {
 
-                    if (keysToNFA.containsKey(op2))
-                    {
-                        nfa.or((NFA)keysToNFA.get(op2).clone());
-                    }
-
-                    else
-                    {
+                    if (keysToNFA.containsKey(op2)) {
+                        nfa.or((NFA) keysToNFA.get(op2).clone());
+                    } else {
                         nfa.or(new NFA(op2.charAt(0)));
                     }
 
@@ -255,13 +239,9 @@ public class LexicalAnalyzerGenerator {
                 /* concat operation */
                 else if (operation.equalsIgnoreCase("concat")) {
 
-                    if (keysToNFA.containsKey(op2))
-                    {
-                        nfa.concat((NFA)keysToNFA.get(op2).clone());
-                    }
-
-                    else
-                    {
+                    if (keysToNFA.containsKey(op2)) {
+                        nfa.concat((NFA) keysToNFA.get(op2).clone());
+                    } else {
                         nfa.concat(new NFA(op2.charAt(0)));
                     }
 
@@ -282,30 +262,15 @@ public class LexicalAnalyzerGenerator {
         return nfa;
     }
 
-
-    /**
-     * Combines all NFAs
-     *
-     * @param tokensNFA: Map of key value pairs. The key denotes the token that this NFA matches
-     *                   while the value denotes the NFA
-     * @return
-     */
-    private NFA combineNFAs(Map<String, NFA> tokensNFA) {
-        return null;
-    }
-
-    private DFA convertToDFA(NFA nfa) {
-        return null;
-    }
-
-    private DFA minimizeDFA(DFA dfa) {
+    private NFA combineNFAs() {
 
         return null;
     }
+
 
 
     // Regular expression
-    private Stack<String> getRegularExpression(String expression){
+    private Stack<String> getRegularExpression(String expression) {
         Stack<String> values = new Stack<>();
         String s;
         boolean flag = false;
@@ -315,54 +280,54 @@ public class LexicalAnalyzerGenerator {
             char ch = expression.charAt(i);
 
             // Check for the brackets
-            if(ch == '('){
+            if (ch == '(') {
                 int closeindex = expression.lastIndexOf(')');
-                if(closeindex == -1){
+                if (closeindex == -1) {
                     System.out.println("Error in input file");
                     System.exit(0);
                 }
                 //Check if there is no closure
-                if(closeindex == expression.length()-1){
+                if (closeindex == expression.length() - 1) {
                     //Check if it the expression doesnt start with a bracket
                     //Concat the previous expression and the new one
-                    if(i!=0){
-                        s = expression.substring(0,i);
+                    if (i != 0) {
+                        s = expression.substring(0, i);
                         values.add("concat");
                         values.add(s);
                     }
-                    expression = expression.substring(i+1,closeindex).trim();
+                    expression = expression.substring(i + 1, closeindex).trim();
                     i = -1;
                     continue;
                 }
-                char closure = expression.charAt(closeindex+1);
+                char closure = expression.charAt(closeindex + 1);
                 //Kleene closure on the bracket
-                if(closure == '*'){
+                if (closure == '*') {
                     values.add("kleene");
-                    expression = expression.substring(i+1,closeindex).trim();
+                    expression = expression.substring(i + 1, closeindex).trim();
                 }
                 //Positive closure on the bracket
-                else if(closure == '+'){
+                else if (closure == '+') {
                     values.add("positive");
-                    expression = expression.substring(i+1,closeindex).trim();
+                    expression = expression.substring(i + 1, closeindex).trim();
                 }
                 i = -1;
                 continue;
             }
 
             //Extra closing bracket
-            if(ch==')'){
+            if (ch == ')') {
                 System.err.println("Error in rules");
                 System.exit(0);
             }
 
             //The or regex
-            if(ch == '|'){
+            if (ch == '|') {
 
                 s = expression.substring(0, i);
-                expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
+                expression = expression.substring(i + 1, expression.length()).trim();    //starting after the or character
                 values.add("or");
-                if(s.length()!=0){
-                    if(flag){
+                if (s.length() != 0) {
+                    if (flag) {
                         String[] temp = s.split("");
                         values.add("concat");
                         for (int j = 0; j < temp.length; j++) {
@@ -379,12 +344,12 @@ public class LexicalAnalyzerGenerator {
             }
 
             //positive closure
-            if(ch == '+'){
-                if(!flag) {
+            if (ch == '+') {
+                if (!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
                     //check if there is anything after the positive closure
-                    if(expression.length()!=0) {
+                    if (expression.length() != 0) {
                         if (expression.startsWith("|")) {
                             values.add("or");
                             expression = expression.substring(1, expression.length()).trim();
@@ -400,11 +365,11 @@ public class LexicalAnalyzerGenerator {
             }
 
             //kleene closure
-            if(ch == '*'){
-                if(!flag) {
+            if (ch == '*') {
+                if (!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
-                    if(expression !="") {
+                    if (expression != "") {
                         if (expression.startsWith("|")) {
                             values.add("or");
                             expression = expression.substring(1, expression.length()).trim();
@@ -420,71 +385,70 @@ public class LexicalAnalyzerGenerator {
             }
 
             // Range
-            if(ch == '-'){
-                if(!flag) {
+            if (ch == '-') {
+                if (!flag) {
                     char start = expression.charAt(0);
-                    expression = expression.substring(i+1,expression.length()).trim();
+                    expression = expression.substring(i + 1, expression.length()).trim();
                     char end = expression.charAt(0);
                     String newexpression = "";
-                    for (int j = (byte)start; j < (byte)end; j++) {
-                        newexpression = newexpression + (char)j + "|";
+                    for (int j = (byte) start; j < (byte) end; j++) {
+                        newexpression = newexpression + (char) j + "|";
                     }
                     newexpression = newexpression + end;
-                    expression = newexpression + expression.substring(1,expression.length());
+                    expression = newexpression + expression.substring(1, expression.length());
                     i = -1;
                     continue;
                 }
             }
 
             // Concat
-            if(ch==' '){
+            if (ch == ' ') {
                 // <\= | <   ---> < = | <
                 s = expression.substring(0, i);
-                String temp = expression.substring(i,expression.length()).trim();
+                String temp = expression.substring(i, expression.length()).trim();
                 //check if the concat is between two expressions
-                if(temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*") || temp.startsWith("-")){
-                    expression = expression.substring(0,i) + expression.substring(i+1,expression.length());
+                if (temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*") || temp.startsWith("-")) {
+                    expression = expression.substring(0, i) + expression.substring(i + 1, expression.length());
                     i--;
                     continue;
                 }
-                expression = expression.substring(i,expression.length()).trim();
+                expression = expression.substring(i, expression.length()).trim();
                 values.add("concat");
                 values.add(s);
                 i = -1;
                 continue;
             }
 
-            if(ch == '\\'){
-                char nextchar = expression.charAt(i+1);
-                if(nextchar == 'L'){
-                    expression = "~" + expression.substring(i+2,expression.length());
+            if (ch == '\\') {
+                char nextchar = expression.charAt(i + 1);
+                if (nextchar == 'L') {
+                    expression = "~" + expression.substring(i + 2, expression.length());
                     i = -1;
                     continue;
-                }
-                else if(nextchar == '*' || nextchar == '+' || nextchar == '-' || nextchar == '=' || nextchar == ':'){
+                } else if (nextchar == '*' || nextchar == '+' || nextchar == '-' || nextchar == '=' || nextchar == ':') {
                     flag = true;
                 }
-                expression = expression.substring(0, i)  + expression.substring(i+1,expression.length());
+                expression = expression.substring(0, i) + expression.substring(i + 1, expression.length());
                 expression = expression.trim();
-                i --;
+                i--;
                 continue;
             }
 
-            if(flag){
+            if (flag) {
 //                System.out.println("EXPRESSION");
 //                System.out.println("INDEX           "  + i);
 //                System.out.println(expression);
-                if(i > 0){
+                if (i > 0) {
 //                    System.out.println(expression.substring(0,i));
 //                    System.out.println("AA");
 //                    System.out.println(expression.substring(i,i+1));
-                    s = expression.substring(0,i).trim();
-                    String op = expression.substring(i,i+1);
-                    String temp = expression.substring(i+1, expression.length()).trim();
-                    if(temp.startsWith("|")){
+                    s = expression.substring(0, i).trim();
+                    String op = expression.substring(i, i + 1);
+                    String temp = expression.substring(i + 1, expression.length()).trim();
+                    if (temp.startsWith("|")) {
                         continue;
                     }
-                    expression = expression.substring(i+1, expression.length()).trim();
+                    expression = expression.substring(i + 1, expression.length()).trim();
                     values.add("concat");
                     values.add(s);
                     values.add(op);
@@ -493,7 +457,7 @@ public class LexicalAnalyzerGenerator {
                 flag = false;
             }
         }
-        if(expression.length()!=0){
+        if (expression.length() != 0) {
             values.add(expression);
         }
 //        System.out.println(values);

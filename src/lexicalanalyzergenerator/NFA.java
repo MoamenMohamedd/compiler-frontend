@@ -52,7 +52,7 @@ public class NFA implements Cloneable {
     }
 
     public State getNewState(boolean isStart, boolean isFinal) {
-        State newState = new State(counter++, false, false);
+        State newState = new State(counter++, isStart, isFinal);
         return newState;
     }
 

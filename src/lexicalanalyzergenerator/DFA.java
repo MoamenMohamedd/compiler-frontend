@@ -40,10 +40,7 @@ public class DFA extends TransitionTable {
         NFA nf = new NFA(state0, fs);
 
         this.nfa = nf;
-
-
         this.subsets = new HashMap<>();
-
         this.inputSymbols = new ArrayList<>();
         this.inputSymbols.add('a');
         this.inputSymbols.add('b');

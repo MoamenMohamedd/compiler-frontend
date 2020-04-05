@@ -3,10 +3,7 @@ package lexicalanalyzergenerator;
 import javax.sound.midi.Soundbank;
 import javax.swing.*;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +12,13 @@ public class LexicalAnalyzerGenerator {
     private final int REG_DEF = 0;
     private final int REG_EXP = 1;
     private HashMap<String, NFA> keysToNFA = new HashMap<>();
-
+    private HashMap<String, Stack<String>> keystoStack = new HashMap<>();
+    private final Set<String> actions = new HashSet<String>() {{
+        add("positive");
+        add("kleene");
+        add("concat");
+        add("or");
+    }};
 
     public LexicalAnalyzerGenerator(String pathToRules) {
         this.pathToRules = pathToRules;
@@ -23,21 +26,20 @@ public class LexicalAnalyzerGenerator {
 
 
     public LexicalAnalyzer getLexicalAnalyzer() {
-
         System.out.println(this.pathToRules);
         File file = new File(this.pathToRules);
 
         // Build NFAs
         Map<String, NFA> tokenNFAs = buildNFAs(file);
 
-        // Convert to DFA
-        NFA nfa = combineNFAs();
+        // Combine NFAs
+        NFA combinedNFA = NFA.combineNFAs(new ArrayList<>(tokenNFAs.values()));
 
-        DFA dfa = new DFA(nfa);
+        // Minimize DFA
+        DFA dfa = new DFA(combinedNFA);
 
         return new LexicalAnalyzer(dfa);
     }
-
 
     /**
      * Reads input file (lexical rules) and
@@ -58,56 +60,55 @@ public class LexicalAnalyzerGenerator {
             String line;
             boolean deflag = false;
 
-            while ((line = bufferedReader.readLine()) != null) {
+            while((line = bufferedReader.readLine())!=null){
                 Stack s = new Stack();
 
                 //Keywords
-                if (line.startsWith("{")) {
-                    line = line.substring(1, line.length() - 1);
+                if(line.startsWith("{")){
+                    line=line.substring(1,line.length()-1);
 
                     String[] keywords = line.trim().split(" ");
                     for (int i = 0; i < keywords.length; i++) {
                         s.clear();
-                        keywords[i] = keywords[i].replaceAll("", " ").trim().replaceAll(" ", "");
+                        keywords[i] = keywords[i].replaceAll("", " ").trim();
                         s = getRegularExpression(keywords[i]);
-//                        System.out.println("KEYWORDSS");
-                        nfas.put(keywords[i], buildNFA(s, REG_EXP, ""));
-//                        System.out.println("Here at " + i + " " + keywords[i]);
+                        nfas.put(keywords[i], buildNFA(s, REG_EXP, keywords[i].replaceAll(" ", "")));
                     }
                     continue;
                 }
 
                 //Punctuations
-                if (line.startsWith("[")) {
-                    line = line.substring(1, line.length() - 1);
+                if(line.startsWith("[")){
+                    line=line.substring(1,line.length()-1);
 
                     String[] punctuations = line.trim().split("(\\s\\\\|\\\\|\\s)");
                     for (int i = 0; i < punctuations.length; i++) {
                         s.clear();
-                        if (punctuations[i].startsWith("\\")) {
+                        if(punctuations[i].startsWith("\\")){
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
                         s.push(punctuations[i]);
-//                        System.out.println("Puncctt");
-                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, ""));
+                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, punctuations[i].trim().replaceAll(" ", "")));
                     }
                     continue;
                 }
+
                 char prev = line.charAt(0);
+
                 //Regular  expressions and regular definitions
                 for (int i = 0; i < line.length(); i++) {
                     char ch = line.charAt(i);
                     // Regular expression
-                    if (ch == ':') {
+                    if(ch == ':'){
                         deflag = true;
                         int index = i;
-                        key = line.substring(0, index);
+                        key = line.substring(0, index).trim().replaceAll(" ", "");
                         value = line.substring(index + 1, line.length()).trim();
-                        Stack<String> regularExpression = getRegularExpression(value);
-                        if (key.equals("relop")) {
+                        Stack<String> regularExpression =  getRegularExpression(value);
+                        if(key.equals("relop")){
                             for (int j = 0; j < regularExpression.size(); j++) {
                                 String regex = regularExpression.get(j);
-                                if (regex.equals("or") || regex.length() == 1 || regex.equals("concat")) {
+                                if(regex.equals("or")||regex.length()==1||regex.equals("concat")){
                                     s.push(regex);
                                     continue;
                                 }
@@ -115,28 +116,29 @@ public class LexicalAnalyzerGenerator {
                                 Stack temp = getRegularExpression(regex);
                                 s.addAll(temp);
                             }
-                            nfas.put(key, buildNFA(s, REG_EXP, ""));
+
+                            nfas.put(key, buildNFA(s, REG_EXP, key));
                             continue;
                         }
-                        nfas.put(key, buildNFA(regularExpression, REG_EXP, ""));
+                        nfas.put(key, buildNFA(regularExpression, REG_EXP, key));
                         break;
                     }
 
                     // Regular Definition
-                    if (ch == '=' && prev != '\\' && deflag == false) {
-                        System.out.println("DEFINITION");
+                    if(ch == '=' && prev!='\\' && !deflag){
                         int index = i;
                         key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
-                        Stack<String> regularDefinition = getRegularExpression(value);
-                        nfas.put(key, buildNFA(regularDefinition, REG_DEF, key));
+                        Stack<String> regularDefinition =  getRegularExpression(value);
+                        System.out.println();
+                        System.out.println(key);
+                        System.out.println();
+                        buildNFA(regularDefinition, REG_DEF, key);
                         break;
                     }
                 }
                 deflag = false;
             }
-            System.out.println(nfas.toString());
-//            System.out.println(nfas.get("digit").ge);
             fileReader.close();    //closes the stream and release the resources
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -145,10 +147,7 @@ public class LexicalAnalyzerGenerator {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Map<String, NFA> tokenNFAs = new HashMap<>();
-
-
-        return null;
+        return nfas;
     }
 
     /**
@@ -158,119 +157,266 @@ public class LexicalAnalyzerGenerator {
      * @return NFA
      */
     private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
-
-//        Stack<NFA> builder = new Stack<>();
-//        System.out.println();
-        System.out.println();
-        System.out.println("STACK");
+        Stack<NFA> operands = new Stack<>();
+        Stack<String> temp;
         System.out.println(stack);
-        System.out.println("End Stack");
+        String input;
+        NFA nfa, nfa1, nfa2;
+        boolean lastIsOr = false;
+        String op, operation;
 
-        NFA nfa;
+        if(mode == REG_DEF){
+            if(!keystoStack.containsKey(key)){
+                keystoStack.put(key, (Stack) stack.clone());
+            }
+        }
+            input = stack.pop().toString();
 
-        /* Regular Definition */
+            if (keystoStack.containsKey(input))
+            {
+                temp = (Stack<String>) keystoStack.get(input).clone();
+                nfa1 = buildNFA(temp, REG_EXP, input);
+//                nfa1 = (NFA)keysToNFA.get(input).clone();
+            }
+            else
+            {
+                nfa1 = new NFA(input.charAt(0));
+            }
+
+            operands.push(nfa1);
+
+            while (!stack.empty()) {
+
+                input = stack.pop().toString();
+
+                if (!actions.contains(input)) {
+
+                    if (keystoStack.containsKey(input)) {
+                        temp = (Stack<String>) keystoStack.get(input).clone();
+                        nfa1 = buildNFA(temp, REG_EXP, input);
+//                        nfa1 = (NFA) keysToNFA.get(input).clone();
+                    } else {
+                        nfa1 = new NFA(input.charAt(0));
+                    }
+
+                    operands.push(nfa1);
+                }
+                else {
+
+                    /* or operation */
+                    if (input.equalsIgnoreCase("or")) {
+
+                        nfa1 = operands.pop();
+                        nfa2 = operands.pop();
+                        nfa1 = nfa1.or(nfa2, lastIsOr);
+                        operands.push(nfa1);
+                        lastIsOr = true;
+
+                    } else {
+
+                        /* concat operation */
+                        if (input.equalsIgnoreCase("concat")) {
+                            nfa1 = operands.pop();
+                            nfa2 = operands.pop();
+                            nfa1 = nfa1.concat(nfa2);
+                            operands.push(nfa1);
+                        }
+
+                        /* kleene closure operation */
+                        else if (input.equalsIgnoreCase("kleene")) {
+                            nfa1 = operands.pop();
+                            nfa1 = nfa1.kleeneClosure();
+                            operands.push(nfa1);
+                        }
+
+                        /* positive closure operation */
+                        else if (input.equalsIgnoreCase("positive")) {
+                            nfa1 = operands.pop();
+                            nfa1 = nfa1.positiveClosure();
+                            operands.push(nfa1);
+                        }
+
+                        lastIsOr = false;
+                    }
+                }
+            }
+
+
+        nfa = operands.pop();
+
         if (mode == REG_DEF) {
-
-            char op1, op2;
-            op1 = stack.pop().toString().charAt(0);
-            op2 = stack.pop().toString().charAt(0);
-            nfa = new NFA(op1);
-
-            while (!stack.empty()) {
-                String operation = stack.pop().toString();
-
-                /* or operation */
-                if (operation.equalsIgnoreCase("or")) {
-                    nfa.or(new NFA(op2));
-                }
-
-                /* concat operation */
-                else if (operation.equalsIgnoreCase("concat")) {
-                    nfa.concat(new NFA(op2));
-                }
-
-                /* kleene closure operation */
-                else if (operation.equalsIgnoreCase("kleene")) {
-                    nfa.kleeneClosure();
-                }
-
-                /* Extract the next operand from the stack if exists */
-                if (!stack.empty()) {
-                    op2 = stack.pop().toString().charAt(0);
-                }
-            }
             keysToNFA.put(key, nfa);
+            nfa.setMatches(key);
+            return nfa;
+        }
+        else{
+            System.out.println();
+            System.out.println();
+            nfa.print();
+            nfa.setMatches(key);
+            return nfa;
         }
 
-        /* Regular Expression */
-        else {
-
-            String op1, op2, operation;
-            op1 = stack.pop().toString();
-
-
-            if (keysToNFA.containsKey(op1)) {
-                nfa = (NFA) keysToNFA.get(op1).clone();
-            } else {
-                nfa = new NFA(op1.charAt(0));
-            }
-
-            if (stack.empty()) {
-                return nfa;
-            }
-
-            op2 = stack.pop().toString();
-
-            while (!stack.empty()) {
-
-                operation = stack.pop().toString();
-
-                /* or operation */
-                if (operation.equalsIgnoreCase("or")) {
-
-                    if (keysToNFA.containsKey(op2)) {
-                        nfa.or((NFA) keysToNFA.get(op2).clone());
-                    } else {
-                        nfa.or(new NFA(op2.charAt(0)));
-                    }
-
-                }
-
-                /* concat operation */
-                else if (operation.equalsIgnoreCase("concat")) {
-
-                    if (keysToNFA.containsKey(op2)) {
-                        nfa.concat((NFA) keysToNFA.get(op2).clone());
-                    } else {
-                        nfa.concat(new NFA(op2.charAt(0)));
-                    }
-
-                }
-
-                /* kleene closure operation */
-                else if (operation.equalsIgnoreCase("kleene")) {
-                    nfa.kleeneClosure();
-                }
-
-                /* Extract the next operand from the stack if exists */
-                if (!stack.empty()) {
-                    op2 = stack.pop().toString();
-                }
-            }
-        }
-
-        return nfa;
     }
-
-    private NFA combineNFAs() {
-
-        return null;
-    }
-
+//    private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
+//
+//        NFA nfa;
+//        boolean lastIsOr = false;
+//
+//        /* The stack has definition and operation only */
+//        if (stack.size() == 2) {
+//
+//            String op, operation;
+//            op = stack.pop().toString();
+//
+//
+//            if (keysToNFA.containsKey(op))
+//            {
+//                nfa = (NFA)keysToNFA.get(op).clone();
+//            }
+//            else
+//            {
+//                nfa = new NFA(op.charAt(0));
+//            }
+//
+//            operation = stack.pop().toString();
+//
+//            /* kleene closure operation */
+//            if (operation.equalsIgnoreCase("kleene")) {
+//                nfa = nfa.kleeneClosure();
+//            }
+//
+//            /* positive closure operation */
+//            else if (operation.equalsIgnoreCase("positive")) {
+//                nfa = nfa.positiveClosure();
+//            }
+//        }
+//
+//        /* Regular Definition */
+//        else if (mode == REG_DEF) {
+//
+//            char op1, op2;
+//            op1 = stack.pop().toString().charAt(0);
+//
+//            op2 = stack.pop().toString().charAt(0);
+//            nfa = new NFA(op1);
+//
+//            while (!stack.empty()) {
+//                String operation = stack.pop().toString();
+//
+//                /* or operation */
+//                if (operation.equalsIgnoreCase("or")) {
+//                    nfa = nfa.or(new NFA(op2), lastIsOr);
+//                    lastIsOr = true;
+//                }
+//
+//                else {
+//                    /* concat operation */
+//                    if (operation.equalsIgnoreCase("concat")) {
+//                        nfa = nfa.concat(new NFA(op2));
+//                    }
+//
+//                    /* kleene closure operation */
+//                    else if (operation.equalsIgnoreCase("kleene")) {
+//                        nfa = nfa.kleeneClosure();
+//                    }
+//
+//                    /* positive closure operation */
+//                    else if (operation.equalsIgnoreCase("positive")) {
+//                        nfa = nfa.positiveClosure();
+//                    }
+//
+//                    lastIsOr = false;
+//                }
+//
+//                /* Extract the next operand from the stack if exists */
+//                if (!stack.empty()) {
+//                    op2 = stack.pop().toString().charAt(0);
+//                }
+//            }
+//            keysToNFA.put(key, nfa);
+//        }
+//
+//        /* Regular Expression */
+//        else {
+//
+//            String op1, op2, operation;
+//            op1 = stack.pop().toString();
+//
+//
+//            if (keysToNFA.containsKey(op1))
+//            {
+//                nfa = (NFA)keysToNFA.get(op1).clone();
+//            }
+//            else
+//            {
+//                nfa = new NFA(op1.charAt(0));
+//            }
+//
+//            if (stack.empty()) {
+//                return nfa;
+//            }
+//
+//            op2 = stack.pop().toString();
+//
+//            while (!stack.empty()) {
+//
+//                operation = stack.pop().toString();
+//
+//                /* or operation */
+//                if (operation.equalsIgnoreCase("or")) {
+//
+//                    if (keysToNFA.containsKey(op2))
+//                    {
+//                        nfa = nfa.or((NFA)keysToNFA.get(op2).clone(), lastIsOr);
+//                    }
+//
+//                    else
+//                    {
+//                        nfa = nfa.or(new NFA(op2.charAt(0)), lastIsOr);
+//                    }
+//                    lastIsOr = true;
+//                }
+//
+//                else {
+//
+//                    /* concat operation */
+//                    if (operation.equalsIgnoreCase("concat")) {
+//
+//                        if (keysToNFA.containsKey(op2)) {
+//                            nfa = nfa.concat((NFA) keysToNFA.get(op2).clone());
+//                        } else {
+//                            nfa = nfa.concat(new NFA(op2.charAt(0)));
+//                        }
+//
+//                    }
+//
+//                    /* kleene closure operation */
+//                    else if (operation.equalsIgnoreCase("kleene")) {
+//                        nfa = nfa.kleeneClosure();
+//                    }
+//
+//                    /* positive closure operation */
+//                    else if (operation.equalsIgnoreCase("positive")) {
+//                        nfa = nfa.positiveClosure();
+//                    }
+//
+//                    lastIsOr = false;
+//                }
+//
+//                /* Extract the next operand from the stack if exists */
+//                if (!stack.empty()) {
+//                    op2 = stack.pop().toString();
+//                }
+//            }
+//        }
+//        nfa.getFinalState().setToken(key);
+//        return nfa;
+//    }
 
 
     // Regular expression
-    private Stack<String> getRegularExpression(String expression) {
+    private Stack<String> getRegularExpression(String expression){
         Stack<String> values = new Stack<>();
         String s;
         boolean flag = false;
@@ -280,54 +426,54 @@ public class LexicalAnalyzerGenerator {
             char ch = expression.charAt(i);
 
             // Check for the brackets
-            if (ch == '(') {
+            if(ch == '('){
                 int closeindex = expression.lastIndexOf(')');
-                if (closeindex == -1) {
+                if(closeindex == -1){
                     System.out.println("Error in input file");
                     System.exit(0);
                 }
                 //Check if there is no closure
-                if (closeindex == expression.length() - 1) {
+                if(closeindex == expression.length()-1){
                     //Check if it the expression doesnt start with a bracket
                     //Concat the previous expression and the new one
-                    if (i != 0) {
-                        s = expression.substring(0, i);
+                    if(i!=0){
+                        s = expression.substring(0,i);
                         values.add("concat");
                         values.add(s);
                     }
-                    expression = expression.substring(i + 1, closeindex).trim();
+                    expression = expression.substring(i+1,closeindex).trim();
                     i = -1;
                     continue;
                 }
-                char closure = expression.charAt(closeindex + 1);
+                char closure = expression.charAt(closeindex+1);
                 //Kleene closure on the bracket
-                if (closure == '*') {
+                if(closure == '*'){
                     values.add("kleene");
-                    expression = expression.substring(i + 1, closeindex).trim();
+                    expression = expression.substring(i+1,closeindex).trim();
                 }
                 //Positive closure on the bracket
-                else if (closure == '+') {
+                else if(closure == '+'){
                     values.add("positive");
-                    expression = expression.substring(i + 1, closeindex).trim();
+                    expression = expression.substring(i+1,closeindex).trim();
                 }
                 i = -1;
                 continue;
             }
 
             //Extra closing bracket
-            if (ch == ')') {
+            if(ch==')'){
                 System.err.println("Error in rules");
                 System.exit(0);
             }
 
             //The or regex
-            if (ch == '|') {
+            if(ch == '|'){
 
                 s = expression.substring(0, i);
-                expression = expression.substring(i + 1, expression.length()).trim();    //starting after the or character
+                expression = expression.substring(i+1,expression.length()).trim();    //starting after the or character
                 values.add("or");
-                if (s.length() != 0) {
-                    if (flag) {
+                if(s.length()!=0){
+                    if(flag){
                         String[] temp = s.split("");
                         values.add("concat");
                         for (int j = 0; j < temp.length; j++) {
@@ -344,12 +490,12 @@ public class LexicalAnalyzerGenerator {
             }
 
             //positive closure
-            if (ch == '+') {
-                if (!flag) {
+            if(ch == '+'){
+                if(!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
                     //check if there is anything after the positive closure
-                    if (expression.length() != 0) {
+                    if(expression.length()!=0) {
                         if (expression.startsWith("|")) {
                             values.add("or");
                             expression = expression.substring(1, expression.length()).trim();
@@ -365,11 +511,11 @@ public class LexicalAnalyzerGenerator {
             }
 
             //kleene closure
-            if (ch == '*') {
-                if (!flag) {
+            if(ch == '*'){
+                if(!flag) {
                     s = expression.substring(0, i);
                     expression = expression.substring(i + 1, expression.length()).trim();
-                    if (expression != "") {
+                    if(expression !="") {
                         if (expression.startsWith("|")) {
                             values.add("or");
                             expression = expression.substring(1, expression.length()).trim();
@@ -385,70 +531,71 @@ public class LexicalAnalyzerGenerator {
             }
 
             // Range
-            if (ch == '-') {
-                if (!flag) {
+            if(ch == '-'){
+                if(!flag) {
                     char start = expression.charAt(0);
-                    expression = expression.substring(i + 1, expression.length()).trim();
+                    expression = expression.substring(i+1,expression.length()).trim();
                     char end = expression.charAt(0);
                     String newexpression = "";
-                    for (int j = (byte) start; j < (byte) end; j++) {
-                        newexpression = newexpression + (char) j + "|";
+                    for (int j = (byte)start; j < (byte)end; j++) {
+                        newexpression = newexpression + (char)j + "|";
                     }
                     newexpression = newexpression + end;
-                    expression = newexpression + expression.substring(1, expression.length());
+                    expression = newexpression + expression.substring(1,expression.length());
                     i = -1;
                     continue;
                 }
             }
 
             // Concat
-            if (ch == ' ') {
+            if(ch==' '){
                 // <\= | <   ---> < = | <
                 s = expression.substring(0, i);
-                String temp = expression.substring(i, expression.length()).trim();
+                String temp = expression.substring(i,expression.length()).trim();
                 //check if the concat is between two expressions
-                if (temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*") || temp.startsWith("-")) {
-                    expression = expression.substring(0, i) + expression.substring(i + 1, expression.length());
+                if(temp.startsWith("|") || temp.startsWith("+") || temp.startsWith("*") || temp.startsWith("-")){
+                    expression = expression.substring(0,i) + expression.substring(i+1,expression.length());
                     i--;
                     continue;
                 }
-                expression = expression.substring(i, expression.length()).trim();
+                expression = expression.substring(i,expression.length()).trim();
                 values.add("concat");
                 values.add(s);
                 i = -1;
                 continue;
             }
 
-            if (ch == '\\') {
-                char nextchar = expression.charAt(i + 1);
-                if (nextchar == 'L') {
-                    expression = "~" + expression.substring(i + 2, expression.length());
+            if(ch == '\\'){
+                char nextchar = expression.charAt(i+1);
+                if(nextchar == 'L'){
+                    expression = "~" + expression.substring(i+2,expression.length());
                     i = -1;
                     continue;
-                } else if (nextchar == '*' || nextchar == '+' || nextchar == '-' || nextchar == '=' || nextchar == ':') {
+                }
+                else if(nextchar == '*' || nextchar == '+' || nextchar == '-' || nextchar == '=' || nextchar == ':'){
                     flag = true;
                 }
-                expression = expression.substring(0, i) + expression.substring(i + 1, expression.length());
+                expression = expression.substring(0, i)  + expression.substring(i+1,expression.length());
                 expression = expression.trim();
-                i--;
+                i --;
                 continue;
             }
 
-            if (flag) {
+            if(flag){
 //                System.out.println("EXPRESSION");
 //                System.out.println("INDEX           "  + i);
 //                System.out.println(expression);
-                if (i > 0) {
+                if(i > 0){
 //                    System.out.println(expression.substring(0,i));
 //                    System.out.println("AA");
 //                    System.out.println(expression.substring(i,i+1));
-                    s = expression.substring(0, i).trim();
-                    String op = expression.substring(i, i + 1);
-                    String temp = expression.substring(i + 1, expression.length()).trim();
-                    if (temp.startsWith("|")) {
+                    s = expression.substring(0,i).trim();
+                    String op = expression.substring(i,i+1);
+                    String temp = expression.substring(i+1, expression.length()).trim();
+                    if(temp.startsWith("|")){
                         continue;
                     }
-                    expression = expression.substring(i + 1, expression.length()).trim();
+                    expression = expression.substring(i+1, expression.length()).trim();
                     values.add("concat");
                     values.add(s);
                     values.add(op);
@@ -457,7 +604,7 @@ public class LexicalAnalyzerGenerator {
                 flag = false;
             }
         }
-        if (expression.length() != 0) {
+        if(expression.length()!=0){
             values.add(expression);
         }
 //        System.out.println(values);

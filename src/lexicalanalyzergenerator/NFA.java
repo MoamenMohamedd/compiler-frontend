@@ -86,36 +86,46 @@ public class NFA extends TransitionTable {
         return result;
     }
 
-
     /**
      * Applies or between this NFA and another NFA
      *
      * @param other: NFA
      * @return NFA
      */
-    public NFA or(NFA other) {
-        State newStart = new State(counter++, true, false);
-        State newFinal = new State(counter++, false, true);
 
-        this.startState.setStart(false);
-        other.startState.setStart(false);
+    public NFA or(NFA other, boolean lastIsOr) {
 
-        this.finalStates.get(0).setFinal(true);
-        other.finalStates.get(0).setFinal(true);
+        if (!lastIsOr) {
+            State newStart = new State(counter++, true, false);
+            State newFinal = new State(counter++, false, true);
 
-        newStart.addEdge(this.startState, '~'); // ~ is epsilon
-        newStart.addEdge(other.startState, '~');
-
-        this.finalStates.get(0).addEdge(newFinal, '~');
-        other.finalStates.get(0).addEdge(newFinal, '~');
+            this.startState.setStart(false);
+            other.startState.setStart(false);
 
 
-        ArrayList<State> newFinalStates = new ArrayList<>();
-        newFinalStates.add(newFinal);
+            this.finalStates.get(0).setFinal(false);
+            other.finalStates.get(0).setFinal(false);
 
-        NFA result = new NFA(newStart, newFinalStates);
+            newStart.addEdge(this.startState, '~'); // ~ is epsilon
+            newStart.addEdge(other.startState, '~');
+            this.finalStates.get(0).addEdge(newFinal, '~');
+            other.finalStates.get(0).addEdge(newFinal, '~');
 
-        return result;
+            ArrayList<State> newFinalStates = new ArrayList<>();
+            newFinalStates.add(newFinal);
+
+            NFA result = new NFA(newStart, newFinalStates);
+
+            return result;
+
+        } else {
+
+            this.startState.addEdge(other.startState, '~');
+            other.finalStates.get(0).addEdge(this.finalStates.get(0), '~');
+            other.startState.setStart(false);
+            other.finalStates.get(0).setFinal(false);
+            return this;
+        }
     }
 
     /**
@@ -143,6 +153,31 @@ public class NFA extends TransitionTable {
         return result;
     }
 
+    /**
+     * Combines all NFAs
+     *
+     * @param tokensNFA: Map of key value pairs. The key denotes the token that this NFA matches
+     *                   while the value denotes the NFA
+     * @return
+     */
+    public static NFA combineNFAs(ArrayList<NFA> tokensNFA) {
+
+        State startState = new State(counter++, false, false);
+        ArrayList<State> finalStates = new ArrayList<>();
+
+        for (int i = 0; i < tokensNFA.size(); i++) {
+            /* append new start to nfa start */
+            startState.addEdge(tokensNFA.get(i).getStartState(), '~');
+            tokensNFA.get(i).getStartState().setStart(false);
+
+            /* store all final states */
+            finalStates.addAll(tokensNFA.get(i).getFinalStates());
+        }
+
+
+        return new NFA(startState, finalStates);
+    }
+
     public State getStartState() {
         return startState;
     }
@@ -150,6 +185,11 @@ public class NFA extends TransitionTable {
     public ArrayList<State> getFinalStates() {
         return finalStates;
     }
+
+    public void setMatches(String key) {
+        this.finalStates.get(0).setToken(key);
+    }
+
 
     public void print() {
         System.out.println("----------------------------------------");

@@ -95,7 +95,7 @@ public class LexicalAnalyzer {
 					this.iterator--;
 					this.dfa.reset();
 					//print token's label
-					System.out.println(labels.peek()+"    "+tokens.peek());
+					System.out.println(labels.peek());
 					return labels.pop();
 
 				}

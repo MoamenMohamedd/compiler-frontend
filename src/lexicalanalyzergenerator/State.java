@@ -9,6 +9,7 @@ class State {
     private boolean isStart;
     private boolean isFinal;
     private String token;
+    private int priority;
 
     public State(int label, boolean isStart, boolean isFinal) {
         this.label = label;
@@ -53,12 +54,17 @@ class State {
         this.label = label;
     }
 
+    public int getPriority() {
+        return priority;
+    }
+
     public String getToken() {
         return token;
     }
 
-    public void setToken(String token) {
+    public void setToken(String token, int priority) {
         this.token = token;
+        this.priority = priority;
     }
 
     @Override

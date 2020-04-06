@@ -5,45 +5,44 @@ import java.util.*;
 
 public class DFA extends TransitionTable {
 
-    public DFA(NFA nfa) {
-
-
-        State state0 = new State(0, true, false);
-        State state1 = new State(1, false, false);
-        State state2 = new State(2, false, false);
-        State state3 = new State(3, false, false);
-        State state4 = new State(4, false, false);
-        State state5 = new State(5, false, false);
-        State state6 = new State(6, false, false);
-        State state7 = new State(7, false, false);
-        State state8 = new State(8, false, false);
-        State state9 = new State(9, false, false);
-        State state10 = new State(10, false, true);
-
-
-        state0.addEdge(state1, '~');
-        state0.addEdge(state7, '~');
-        state1.addEdge(state2, '~');
-        state1.addEdge(state4, '~');
-        state2.addEdge(state3, 'a');
-        state4.addEdge(state5, 'b');
-        state3.addEdge(state6, '~');
-        state5.addEdge(state6, '~');
-        state6.addEdge(state1, '~');
-        state6.addEdge(state7, '~');
-        state7.addEdge(state8, 'a');
-        state8.addEdge(state9, 'b');
-        state9.addEdge(state10, 'b');
-
-        ArrayList<State> fs = new ArrayList<>();
-        fs.add(state10);
-        NFA nf = new NFA(state0, fs);
-
-        this.nfa = nf;
+    public DFA(NFA nfa, Set<Character> inputSymbols) {
+        this.nfa = nfa;
         this.subsets = new HashMap<>();
-        this.inputSymbols = new ArrayList<>();
-        this.inputSymbols.add('a');
-        this.inputSymbols.add('b');
+        this.inputSymbols = inputSymbols;
+        this.groups = new HashMap<>();
+
+
+//        State state0 = new State(0, true, false);
+//        State state1 = new State(1, false, false);
+//        State state2 = new State(2, false, false);
+//        State state3 = new State(3, false, false);
+//        State state4 = new State(4, false, false);
+//        State state5 = new State(5, false, false);
+//        State state6 = new State(6, false, false);
+//        State state7 = new State(7, false, false);
+//        State state8 = new State(8, false, false);
+//        State state9 = new State(9, false, false);
+//        State state10 = new State(10, false, true);
+//
+//
+//        state0.addEdge(state1, '~');
+//        state0.addEdge(state7, '~');
+//        state1.addEdge(state2, '~');
+//        state1.addEdge(state4, '~');
+//        state2.addEdge(state3, 'a');
+//        state4.addEdge(state5, 'b');
+//        state3.addEdge(state6, '~');
+//        state5.addEdge(state6, '~');
+//        state6.addEdge(state1, '~');
+//        state6.addEdge(state7, '~');
+//        state7.addEdge(state8, 'a');
+//        state8.addEdge(state9, 'b');
+//        state9.addEdge(state10, 'b');
+
+//        ArrayList<State> fs = new ArrayList<>();
+//        fs.add(state10);
+//        NFA nf = new NFA(state0, fs);
+
 
         convert();
 
@@ -54,18 +53,22 @@ public class DFA extends TransitionTable {
 
 
     private NFA nfa;
-    private ArrayList<Character> inputSymbols;
+    private Set<Character> inputSymbols;
     private HashMap<Set<State>, State> subsets;
+    private HashMap<Integer, Set<State>> groups;
     private int counter = 0;
     private State startState;
     private State current;
 
     private void convert() {
+        groups.put(0, new HashSet<>());
+        groups.put(1, new HashSet<>());
         Queue<Set<State>> queue = new ArrayDeque<>();
         Set<Set<State>> marked = new HashSet<>();
 
         Set<State> initialEclosure = eClosure(nfa.getStartState());
-        storeNewDfaState(initialEclosure);
+        startState = new State(counter++, true, false);
+        subsets.put(initialEclosure, startState);
         queue.add(initialEclosure);
 
         while (!queue.isEmpty()) {
@@ -85,29 +88,29 @@ public class DFA extends TransitionTable {
     }
 
     private void storeNewDfaState(Set<State> states) {
-        ArrayList<State> startStates = new ArrayList<>();
         ArrayList<State> finalStates = new ArrayList<>();
 
         for (State state : states) {
-            if (state.isStart())
-                startStates.add(state);
+
             if (state.isFinal())
                 finalStates.add(state);
         }
 
         State state = null;
-        if (startStates.size() != 0) {
-            state = new State(counter++, true, false);
-        } else if (finalStates.size() == 1) {
+        if (finalStates.size() == 1) {
             state = new State(counter++, false, true);
-            state.setToken(finalStates.get(0).getToken());
+            state.setToken(finalStates.get(0).getToken(), -1);
         } else if (finalStates.size() > 1) {
-            // Retrieve by priority
+            finalStates.sort((s1, s2) -> s1.getPriority() - s2.getPriority());
+            state = new State(counter++, false, true);
+            state.setToken(finalStates.get(0).getToken(), -1);
         } else {
             state = new State(counter++, false, false);
+            groups.get(1).add(state);
         }
 
         subsets.put(states, state);
+        groups.get(0).add(state);
     }
 
 
@@ -168,6 +171,15 @@ public class DFA extends TransitionTable {
         System.out.println("----------------------------------------");
         super.print(startState, new HashSet<>());
         System.out.println("----------------------------------------");
+    }
+
+    private void minimize() {
+        int groupId = 0;
+        for (Set<State> group: groups.values()){
+
+        }
+
+
     }
 
     public String advance(char input) {

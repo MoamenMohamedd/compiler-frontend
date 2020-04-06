@@ -162,7 +162,7 @@ public class NFA extends TransitionTable {
      */
     public static NFA combineNFAs(ArrayList<NFA> tokensNFA) {
 
-        State startState = new State(counter++, false, false);
+        State startState = new State(counter++, true, false);
         ArrayList<State> finalStates = new ArrayList<>();
 
         for (int i = 0; i < tokensNFA.size(); i++) {
@@ -186,8 +186,8 @@ public class NFA extends TransitionTable {
         return finalStates;
     }
 
-    public void setMatches(String key) {
-        this.finalStates.get(0).setToken(key);
+    public void setMatches(String key, int priority) {
+        this.finalStates.get(0).setToken(key,priority);
     }
 
 

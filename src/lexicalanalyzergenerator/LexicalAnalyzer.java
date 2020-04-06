@@ -54,7 +54,6 @@ public class LexicalAnalyzer {
             e.printStackTrace();
         }
         this.program = data;
-
     }
 
     /**
@@ -63,6 +62,7 @@ public class LexicalAnalyzer {
      * @return String
      */
     public String getNext() {
+        dfa.reset();
 
         Stack<String> tokens = new Stack<>();
         Stack<String> labels = new Stack<>();

@@ -6,7 +6,8 @@ public class Compiler {
         LexicalAnalyzer lexicalAnalyzer = lexicalAnalyzerGenerator.getLexicalAnalyzer();
         lexicalAnalyzer.setInputProgram(System.getProperty("user.dir") + "/src" + "//input-1.txt");
 
-//        lexicalAnalyzer.getNext();
+//        while (lexicalAnalyzer.hasNext())
+//            System.out.println(lexicalAnalyzer.getNext());
 
     }
 }

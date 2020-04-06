@@ -2,12 +2,12 @@ import lexicalanalyzergenerator.*;
 
 public class Compiler {
     public static void main(String[] args) {
-        LexicalAnalyzerGenerator lexicalAnalyzerGenerator = new LexicalAnalyzerGenerator(System.getProperty("user.dir") + "/src" + "//input.txt");
+        LexicalAnalyzerGenerator lexicalAnalyzerGenerator = new LexicalAnalyzerGenerator(System.getProperty("user.dir") + "/src" + "//input-rules-1.txt");
         LexicalAnalyzer lexicalAnalyzer = lexicalAnalyzerGenerator.getLexicalAnalyzer();
-        lexicalAnalyzer.setInputProgram(System.getProperty("user.dir") + "/src" + "//input-1.txt");
+        lexicalAnalyzer.setInputProgram(System.getProperty("user.dir") + "/src" + "//input-program-1.txt");
 
-//        while (lexicalAnalyzer.hasNext())
-//            System.out.println(lexicalAnalyzer.getNext());
+        while (lexicalAnalyzer.hasNext())
+            lexicalAnalyzer.getNext();
 
     }
 }

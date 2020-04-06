@@ -57,7 +57,7 @@ public class DFA extends TransitionTable {
 
         convert();
 
-        print();
+//        print();
 
 
     }

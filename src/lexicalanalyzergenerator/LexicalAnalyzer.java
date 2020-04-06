@@ -63,7 +63,6 @@ public class LexicalAnalyzer {
      * @return String
      */
     public String getNext(){
-       
     	Stack<String> tokens=new Stack<>();
 		Stack<String> labels=new Stack<>();
 		
@@ -106,17 +105,8 @@ public class LexicalAnalyzer {
 		
 		
 		return null;
-		
-        
-        
-        
-        
     }
 
-    
-    
-    
-    
     
     /**
      * Checks if there is a next token from

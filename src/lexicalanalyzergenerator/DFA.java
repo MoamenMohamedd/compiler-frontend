@@ -202,7 +202,8 @@ public class DFA extends TransitionTable {
         for (Edge edge : current.getEdges()) {
             if (edge.getInput() == input) {
                 current = edge.getTo();
-                return current.getToken();
+
+                return current.isFinal() ? current.getToken(): " ";
             }
         }
 

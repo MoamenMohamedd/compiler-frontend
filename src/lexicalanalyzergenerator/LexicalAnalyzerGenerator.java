@@ -13,6 +13,7 @@ public class LexicalAnalyzerGenerator {
     private final int REG_EXP = 1;
     private HashMap<String, NFA> keysToNFA = new HashMap<>();
     private HashMap<String, Stack<String>> keystoStack = new HashMap<>();
+    private ArrayList<State> finalsates = new ArrayList<>();
     private final Set<String> actions = new HashSet<String>() {{
         add("positive");
         add("kleene");
@@ -34,7 +35,8 @@ public class LexicalAnalyzerGenerator {
 
         // Combine NFAs
         NFA combinedNFA = NFA.combineNFAs(new ArrayList<>(tokenNFAs.values()));
-
+        System.out.println("Final states = " + finalsates);
+        combinedNFA.print();
         // Minimize DFA
         DFA dfa = new DFA(combinedNFA);
 
@@ -52,6 +54,7 @@ public class LexicalAnalyzerGenerator {
         HashMap<String, NFA> nfas = new HashMap<>();
         String key;
         String value;
+        NFA nfa;
 
         try {
             FileReader fileReader = new FileReader(file);
@@ -72,7 +75,10 @@ public class LexicalAnalyzerGenerator {
                         s.clear();
                         keywords[i] = keywords[i].replaceAll("", " ").trim();
                         s = getRegularExpression(keywords[i]);
-                        nfas.put(keywords[i], buildNFA(s, REG_EXP, keywords[i].replaceAll(" ", "")));
+                        System.out.println(s);
+                        nfa = buildNFA(s, REG_EXP, keywords[i].replaceAll(" ", ""));
+                        finalsates.addAll(nfa.getFinalStates());
+                        nfas.put(keywords[i], nfa);
                     }
                     continue;
                 }
@@ -88,7 +94,10 @@ public class LexicalAnalyzerGenerator {
                             punctuations[i] = punctuations[i].substring(1, punctuations[i].length());
                         }
                         s.push(punctuations[i]);
-                        nfas.put(punctuations[i], buildNFA(s, REG_EXP, punctuations[i].trim().replaceAll(" ", "")));
+                        System.out.println(s);
+                        nfa = buildNFA(s, REG_EXP, punctuations[i].trim().replaceAll(" ", ""));
+                        finalsates.addAll(nfa.getFinalStates());
+                        nfas.put(punctuations[i], nfa);
                     }
                     continue;
                 }
@@ -105,6 +114,7 @@ public class LexicalAnalyzerGenerator {
                         key = line.substring(0, index).trim().replaceAll(" ", "");
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularExpression =  getRegularExpression(value);
+                        System.out.println(regularExpression);
                         if(key.equals("relop")){
                             for (int j = 0; j < regularExpression.size(); j++) {
                                 String regex = regularExpression.get(j);
@@ -116,11 +126,14 @@ public class LexicalAnalyzerGenerator {
                                 Stack temp = getRegularExpression(regex);
                                 s.addAll(temp);
                             }
-
-                            nfas.put(key, buildNFA(s, REG_EXP, key));
-                            continue;
+                            nfa = buildNFA(s, REG_EXP, key);
+                            finalsates.addAll(nfa.getFinalStates());
+                            nfas.put(key, nfa);
+                            break;
                         }
-                        nfas.put(key, buildNFA(regularExpression, REG_EXP, key));
+                        nfa = buildNFA(regularExpression, REG_EXP, key);
+                        finalsates.addAll(nfa.getFinalStates());
+                        nfas.put(key, nfa);
                         break;
                     }
 
@@ -130,9 +143,7 @@ public class LexicalAnalyzerGenerator {
                         key = line.substring(0, index).trim();
                         value = line.substring(index + 1, line.length()).trim();
                         Stack<String> regularDefinition =  getRegularExpression(value);
-                        System.out.println();
-                        System.out.println(key);
-                        System.out.println();
+                        System.out.println(regularDefinition);
                         buildNFA(regularDefinition, REG_DEF, key);
                         break;
                     }
@@ -159,7 +170,6 @@ public class LexicalAnalyzerGenerator {
     private NFA buildNFA(Stack stack, int mode, String key) throws Exception {
         Stack<NFA> operands = new Stack<>();
         Stack<String> temp;
-        System.out.println(stack);
         String input;
         NFA nfa, nfa1, nfa2;
         boolean lastIsOr = false;

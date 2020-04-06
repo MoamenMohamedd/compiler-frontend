@@ -75,18 +75,19 @@ public class LexicalAnalyzer {
 			
 		while (this.iterator<this.program.length())
 		{      
-		
+			//System.out.println("token=   "+token);
+
 			token+=this.program.charAt(this.iterator);
 			head=this.program.charAt(this.iterator);
 			//get the label from the DFA
 			label =this.dfa.advance(this.head);
-			
+			this.iterator++;
 			
 			if(label!=null)		
 			{
 				tokens.push(token);
 				labels.push(label);
-				this.iterator++;
+
 			}
 			else {
 				
@@ -102,7 +103,6 @@ public class LexicalAnalyzer {
 			}
 			
 		}
-		
 		
 		
 		return null;
@@ -129,11 +129,11 @@ public class LexicalAnalyzer {
         		return true;
         return false;
     }
-    public static void main(String[] args)  {
-		// TODO Auto-generated method stub
-		//Read test program from 
-    	LexicalAnalyzer x=new LexicalAnalyzer(null);
-		x.setInputProgram(System.getProperty("user.dir") + "/src" + "//TestProgram.txt");
-		x.getNext();
-	}
+//    public static void main(String[] args)  {
+//		// TODO Auto-generated method stub
+//		//Read test program from 
+//    	LexicalAnalyzer x=new LexicalAnalyzer(null);
+//		x.setInputProgram(System.getProperty("user.dir") + "/src" + "//TestProgram.txt");
+//		x.getNext();
+//	}
 }

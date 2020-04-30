@@ -21,6 +21,7 @@ public class LexicalAnalyzerGenerator {
     }};
     private static int priority = 0;
     private Set<Character> inputSymbols = new HashSet<>();
+    // alphabet
 
     public LexicalAnalyzerGenerator(String pathToRules) {
         this.pathToRules = pathToRules;
@@ -177,6 +178,7 @@ public class LexicalAnalyzerGenerator {
             nfa1 = buildNFA(temp, REG_EXP, input);
 //                nfa1 = (NFA)keysToNFA.get(input).clone();
         } else {
+            // if character not in alphabet throw an error
             nfa1 = new NFA(input.charAt(0));
             inputSymbols.add(input.charAt(0));
         }
@@ -194,6 +196,7 @@ public class LexicalAnalyzerGenerator {
                     nfa1 = buildNFA(temp, REG_EXP, input);
 //                        nfa1 = (NFA) keysToNFA.get(input).clone();
                 } else {
+                    // if character not in alphabet throw an error
                     nfa1 = new NFA(input.charAt(0));
                     inputSymbols.add(input.charAt(0));
                 }

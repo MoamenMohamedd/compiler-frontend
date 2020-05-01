@@ -14,6 +14,5 @@ public class TransitionTable {
             System.out.println(edge);
             print(edge.getTo(), visited);
         }
-
     }
 }

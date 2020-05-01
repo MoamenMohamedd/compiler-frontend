@@ -43,6 +43,8 @@ public class Symbol {
         return null;
     }
 
+    public void setProductions(ArrayList<ArrayList<Symbol>> productions){ this.productions = productions;}
+
     public boolean isTerminal() {
         return this.isTerminal;
     }

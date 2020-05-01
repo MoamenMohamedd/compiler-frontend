@@ -1,5 +1,7 @@
 package lexicalanalyzergenerator;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 
@@ -9,56 +11,49 @@ public class DFA extends TransitionTable {
         this.nfa = nfa;
         this.subsets = new HashMap<>();
         this.inputSymbols = inputSymbols;
-        this.groups = new HashMap<>();
+//        this.inputSymbols = new HashSet<>();
+//        this.inputSymbols.add('0');
+//        this.inputSymbols.add('1');
 
-//        this.nfa.print();
-
-
-//            State state0 = new State(0, true, false);
-//            State state1 = new State(1, false, false);
-//            State state2 = new State(2, false, false);
-//            State state3 = new State(3, false, false);
-//            State state4 = new State(4, false, false);
-//            State state5 = new State(5, false, false);
-//            State state6 = new State(6, false, false);
-//            State state7 = new State(7, false, false);
-//            State state8 = new State(8, false, false);
-//            State state9 = new State(9, false, false);
-//            State state10 = new State(10, false, true);
+//        State state0 = new State(0,true,false);
+//        State state1 = new State(1,false,true);
+//        state1.setToken("id",3);
+//        State state2 = new State(2,false,true);
+//        state2.setToken("if",2);
+//        State state3 = new State(3,false,false);
+//        State state4 = new State(4,false,true);
+//        state4.setToken("int",1);
+//        State state5 = new State(5,false,false);
+//
+//        state0.addEdge(state3,'0');
+//        state0.addEdge(state1,'1');
+//        state1.addEdge(state2,'0');
+//        state1.addEdge(state5,'1');
+//        state2.addEdge(state2,'0');
+//        state2.addEdge(state5,'1');
+//        state3.addEdge(state0,'0');
+//        state3.addEdge(state4,'1');
+//        state4.addEdge(state2,'0');
+//        state4.addEdge(state5,'1');
+//        state5.addEdge(state5,'0');
+//        state5.addEdge(state5,'1');
+//
+//        this.temp.add(state0);
+//        this.temp.add(state1);
+//        this.temp.add(state2);
+//        this.temp.add(state3);
+//        this.temp.add(state4);
+//        this.temp.add(state5);
 //
 //
-//            state0.addEdge(state1, '~');
-//            state0.addEdge(state7, '~');
-//            state1.addEdge(state2, '~');
-//            state1.addEdge(state4, '~');
-//            state2.addEdge(state3, 'a');
-//            state4.addEdge(state5, 'b');
-//            state3.addEdge(state6, '~');
-//            state5.addEdge(state6, '~');
-//            state6.addEdge(state1, '~');
-//            state6.addEdge(state7, '~');
-//            state7.addEdge(state8, 'a');
-//            state8.addEdge(state9, 'b');
-//            state9.addEdge(state10, 'b');
 //
-//            ArrayList<State> fs = new ArrayList<>();
-//            fs.add(state10);
-//            NFA nf = new NFA(state0, fs);
-//            this.nfa = nf;
-
-//            NFA a = new NFA('a');
-//            NFA b = new NFA('b');
-//            this.nfa = a.or(b,false).kleeneClosure().concat(new NFA('a')).concat(new NFA('b')).concat(new NFA('b'));
-//
-//            this.inputSymbols = new HashSet<>();
-//            this.inputSymbols.add('a');
-//            this.inputSymbols.add('b');
+//        this.startState = state0;
 
 
         convert();
+//        minimize();
 
-//        print();
-
+        print();
 
     }
 
@@ -66,14 +61,12 @@ public class DFA extends TransitionTable {
     private NFA nfa;
     private Set<Character> inputSymbols;
     private HashMap<Set<State>, State> subsets;
-    private HashMap<Integer, Set<State>> groups;
     private int counter = 0;
     private State startState;
     private State current;
+//    public ArrayList<State> temp = new ArrayList<>();
 
     private void convert() {
-        groups.put(0, new HashSet<>());
-        groups.put(1, new HashSet<>());
         Queue<Set<State>> queue = new ArrayDeque<>();
         Set<Set<State>> marked = new HashSet<>();
 
@@ -113,16 +106,13 @@ public class DFA extends TransitionTable {
         State state = null;
         if (finalStates.size() == 1) {
             state = new State(counter++, false, true);
-            state.setToken(finalStates.get(0).getToken(), -1);
-            groups.get(0).add(state);
+            state.setToken(finalStates.get(0).getToken(), finalStates.get(0).getPriority());
         } else if (finalStates.size() > 1) {
             finalStates.sort((s1, s2) -> s1.getPriority() - s2.getPriority());
             state = new State(counter++, false, true);
-            state.setToken(finalStates.get(0).getToken(), -1);
-            groups.get(0).add(state);
+            state.setToken(finalStates.get(0).getToken(), finalStates.get(0).getPriority());
         } else {
             state = new State(counter++, false, false);
-            groups.get(1).add(state);
         }
 
         subsets.put(states, state);
@@ -190,19 +180,181 @@ public class DFA extends TransitionTable {
     }
 
     private void minimize() {
-        int groupId = 0;
-        for (Set<State> group : groups.values()) {
+        ArrayList<Set<State>> partition = new ArrayList<>();
+        partition.add(new LinkedHashSet<>());
+        partition.add(new LinkedHashSet<>());
 
+        for (State state : this.subsets.values()) {
+            if (state.isStart() || !(state.isStart() || state.isFinal()))
+                partition.get(1).add(state);
+            if (state.isFinal())
+                partition.get(0).add(state);
         }
 
 
+        ArrayList<Set<State>> oldPartition = null;
+        ArrayList<Set<State>> newPartition = null;
+        do {
+            oldPartition = newPartition != null ? newPartition : partition;
+            newPartition = partition(oldPartition);
+        } while (!newPartition.equals(oldPartition));
+
+
+        Map<Integer, State> pickedStates = new HashMap<>();
+        for (int i = 0; i < newPartition.size(); i++) {
+            if (newPartition.get(i).size() == 1) {
+                pickedStates.put(i, newPartition.get(i).iterator().next());
+                continue;
+            }
+
+            ArrayList<State> startStates = new ArrayList<>();
+            ArrayList<State> finalStates = new ArrayList<>();
+            ArrayList<State> otherStates = new ArrayList<>();
+
+            for (State state : newPartition.get(i)) {
+                if (state.isStart())
+                    startStates.add(state);
+                else if (state.isFinal())
+                    finalStates.add(state);
+                else
+                    otherStates.add(state);
+            }
+
+
+            if (!otherStates.isEmpty()) {
+                pickedStates.put(i, otherStates.get(0));
+                continue;
+            }
+
+            if (!finalStates.isEmpty()) {
+                finalStates.sort((s1, s2) -> s1.getPriority() - s2.getPriority());
+                pickedStates.put(i, finalStates.get(0));
+                continue;
+            }
+
+            if (!startStates.isEmpty()) {
+                pickedStates.put(i, startStates.get(0));
+                continue;
+            }
+
+
+        }
+
+        for (State state : pickedStates.values()) {
+            for (Edge edge : state.getEdges()) {
+                edge.setTo(getPickedState(edge.getTo(), newPartition, pickedStates));
+            }
+        }
+
+        try {
+            FileWriter writer = new FileWriter("transitionTable.csv");
+
+            for (Character ch : inputSymbols) {
+                writer.append(ch + ",");
+            }
+            writer.append("\n");
+
+            for (State state : pickedStates.values()) {
+                writer.append(state.getLabel() + " ");
+                for (Character ch : inputSymbols) {
+                    String stateLabel = advance(state, ch) == null ? "0" : advance(state, ch).getLabel() + "";
+                    writer.append(stateLabel);
+                    writer.append(",");
+                }
+                writer.append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        System.out.println();
+    }
+
+    private State getPickedState(State state, ArrayList<Set<State>> partition, Map<Integer, State> pickedStates) {
+        for (int i = 0; i < partition.size(); i++) {
+            if (partition.get(i).contains(state))
+                return pickedStates.get(i);
+        }
+        return null;
+    }
+
+    private ArrayList<Set<State>> partition(ArrayList<Set<State>> partition) {
+        ArrayList<Set<State>> newPartition = new ArrayList<>();
+
+        for (Set<State> set : partition) {
+            if (set.size() == 1) {
+                newPartition.add(set);
+                continue;
+            }
+
+            Iterator<State> iterator1 = set.iterator();
+            Iterator<State> iterator2 = set.iterator();
+            iterator2.next();
+
+            Set<State> newSet1 = new HashSet<>();
+            Set<State> newSet2 = new HashSet<>(set);
+            while (iterator1.hasNext()) {
+                while (iterator2.hasNext()) {
+                    State s1 = iterator1.next();
+                    State s2 = iterator2.next();
+
+                    if (areDistinguishable(s1, s2, partition)) {
+                        newSet1.add(s2);
+                        newSet2.remove(s2);
+                    }
+                }
+                if (!newSet1.isEmpty())
+                    newPartition.add(newSet1);
+
+                newPartition.add(newSet2);
+                break;
+            }
+
+        }
+
+        return newPartition;
+    }
+
+    private boolean areDistinguishable(State s1, State s2, ArrayList<Set<State>> partition) {
+        boolean distinguishable = false;
+
+        for (Character ch : inputSymbols) {
+            State s1Advanced = advance(s1, ch);
+            State s2Advanced = advance(s2, ch);
+            if (areInDifferentSets(s1Advanced, s2Advanced, partition))
+                distinguishable = true;
+        }
+
+        return distinguishable;
+    }
+
+    private boolean areInDifferentSets(State s1, State s2, ArrayList<Set<State>> partition) {
+        for (Set set : partition) {
+            if (set.contains(s1) && !set.contains(s2))
+                return true;
+            if (set.contains(s2) && !set.contains(s1))
+                return true;
+        }
+
+        return false;
+    }
+
+    private State advance(State state, char input) {
+        for (Edge edge : state.getEdges()) {
+            if (edge.getInput() == input) {
+                return edge.getTo();
+            }
+        }
+        return null;
     }
 
     public String advance(char input) {
         for (Edge edge : current.getEdges()) {
             if (edge.getInput() == input) {
                 current = edge.getTo();
-                return current.getToken();
+
+                return current.isFinal() ? current.getToken() : " ";
             }
         }
 

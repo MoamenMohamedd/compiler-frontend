@@ -45,6 +45,7 @@ public class LexicalAnalyzer {
 		
 	      while (myReader.hasNextLine()) {
 	         data += myReader.nextLine();
+	         data += " ";
 	      }
 	      myReader.close();
 

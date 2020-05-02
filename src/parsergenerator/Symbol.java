@@ -30,7 +30,6 @@ public class Symbol {
      * @return ArrayList<Symbol>
      */
     public ArrayList<Symbol> leftFactorProductions() {
-
         return null;
     }
 
@@ -45,6 +44,10 @@ public class Symbol {
 
     public void setProductions(ArrayList<ArrayList<Symbol>> productions){ this.productions = productions;}
 
+    public ArrayList<ArrayList<Symbol>> getProductions() { return productions; }
+
+    public String getLabel() { return this.label; }
+
     public boolean isTerminal() {
         return this.isTerminal;
     }
@@ -54,24 +57,24 @@ public class Symbol {
     }
 
 
-    @Override
-    public String toString() {
-        if (isTerminal)
-            return label;
-        else {
-            StringBuilder builder = new StringBuilder();
-            builder.append(label).append(" ::= ");
-            for (ArrayList<Symbol> production : productions) {
-                for (Symbol symbol : production) {
-                    builder.append(symbol.label).append(" ");
-                }
-                builder.append("|");
-            }
-
-            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|"), "");
-            return builder.toString();
-        }
-    }
+//    @Override
+//    public String toString() {
+//        if (isTerminal)
+//            return label;
+//        else {
+//            StringBuilder builder = new StringBuilder();
+//            builder.append(label).append(" ::= ");
+//            for (ArrayList<Symbol> production : productions) {
+//                for (Symbol symbol : production) {
+//                    builder.append(symbol.label).append(" ");
+//                }
+//                builder.append("|");
+//            }
+//
+//            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|"), "");
+//            return builder.toString();
+//        }
+//    }
 
 }
 

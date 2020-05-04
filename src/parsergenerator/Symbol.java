@@ -43,11 +43,17 @@ public class Symbol {
         return null;
     }
 
-    public void setProductions(ArrayList<ArrayList<Symbol>> productions){ this.productions = productions;}
+    public void setProductions(ArrayList<ArrayList<Symbol>> productions) {
+        this.productions = productions;
+    }
 
-    public ArrayList<ArrayList<Symbol>> getProdcution(){return this.productions;}
+    public ArrayList<ArrayList<Symbol>> getProductions() {
+        return this.productions;
+    }
 
-    public String getLabel(){return this.label;}
+    public String getLabel() {
+        return this.label;
+    }
 
     public boolean isTerminal() {
         return this.isTerminal;
@@ -72,7 +78,7 @@ public class Symbol {
                 builder.append("| ");
             }
 
-            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|")+1, "");
+            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|") + 1, "");
             return builder.toString();
         }
     }

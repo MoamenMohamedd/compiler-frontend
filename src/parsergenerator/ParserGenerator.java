@@ -20,7 +20,7 @@ public class ParserGenerator {
 
     public Parser getParser() {
 
-        File file = new File(this.pathToGrammar);
+        File file = new File(pathToGrammar);
 
         readProductions(file);
 
@@ -52,26 +52,25 @@ public class ParserGenerator {
             ArrayList<ArrayList<Symbol>> rightProd = new ArrayList<>();
             while ((line = bufferedReader.readLine()) != null) {
                 line = line.trim();
-                if(line.startsWith("#")){
+                if (line.startsWith("#")) {
                     line = line.substring(1, line.length());
-                    arrayIndex+=1;
+                    arrayIndex += 1;
                     String[] production = line.split("::=");
                     rightProd = new ArrayList<>();
-                    if(arrayIndex == 0 || !symbols.containsKey(production[0].trim())){
+                    if (arrayIndex == 0 || !symbols.containsKey(production[0].trim())) {
                         sym = new Symbol(production[0].trim(), rightProd);
-                    }
-                    else {
+                    } else {
                         sym = symbols.get(production[0].trim());
                     }
-                    rightProd = getRightProd(production[1].trim());
+                    rightProd = getRightProductions(production[1].trim());
                     sym.setProductions(rightProd);
-                    symbols.put(production[0].trim(),sym);
+                    symbols.put(production[0].trim(), sym);
                     grammar.add(sym);
                 }
                 // If line starts with and or
-                else{
+                else {
                     grammar.remove(sym);
-                    rightProd.addAll(getRightProd(line));
+                    rightProd.addAll(getRightProductions(line));
                     sym.setProductions(rightProd);
                     grammar.add(sym);
                 }
@@ -82,7 +81,57 @@ public class ParserGenerator {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        // ......
+    }
+
+    private ArrayList<ArrayList<Symbol>> getRightProductions(String rightProduction) {
+        ArrayList<ArrayList<Symbol>> right = new ArrayList<>();
+        String[] splits = rightProduction.split("\\|"); // split on the or than means we have more than one row
+
+        int terminal = 0;
+        Symbol sym;
+        String temp;
+        int index;
+        for (int i = 0; i < splits.length; i++) {
+            if (splits[i].length() == 0) {
+                continue;
+            }
+            ArrayList<Symbol> row = new ArrayList<>();
+            String label = "";
+            temp = splits[i].trim();
+            String[] syms = temp.split(" ");
+
+            for (int j = 0; j < syms.length; j++) {
+                // Non terminal
+                if (syms[j].trim().startsWith("‘")) {
+                    index = syms[j].lastIndexOf("’");
+                    if (index == -1) {
+                        System.err.println("Wrong Grammar");
+                        exit(0);
+                    }
+                    label = syms[j].trim().substring(1, index);
+                    sym = new Symbol(label);
+                    row.add(sym);
+                } else if (syms[j].trim().equals("\\L")) {
+                    label = "epsilon";
+                    sym = new Symbol(label);
+                    row.add(sym);
+                } else {
+                    ArrayList<ArrayList<Symbol>> rightProd = new ArrayList<>();
+                    label = syms[j].trim();
+                    if (!symbols.containsKey(label)) {
+                        sym = new Symbol(label, rightProd);
+                    } else {
+                        sym = symbols.get(label);
+                    }
+
+                    symbols.put(label, sym);
+                    row.add(sym);
+                }
+            }
+            right.add(row);
+        }
+
+        return right;
     }
 
     private void leftFactorGrammar() {
@@ -100,27 +149,30 @@ public class ParserGenerator {
         for (int i = 0; i < grammar.size(); i++) {
 
             Symbol sym1 = grammar.get(i);           //Ai
-            ArrayList<ArrayList<Symbol>> sym1Production = sym1.getProdcution();     //production of Ai
+            ArrayList<ArrayList<Symbol>> sym1Production = sym1.getProductions();     //production of Ai
 
-            for (int j = 0; j <= i-1; j++) {
+            for (int j = 0; j <= i - 1; j++) {
                 Symbol sym2 = grammar.get(j);       //Aj
                 index = 0;
                 //Parse the array of production of Ai
-                for(ArrayList<Symbol> production : sym1Production){
+                for (ArrayList<Symbol> production : sym1Production) {
 
                     //Check if the first element in the production is equals to Aj non terminal
                     //Check is this non terminal has been seen before
-                    if(production.get(0).getLabel() == sym2.getLabel()){
-                        ArrayList<ArrayList<Symbol>> temp = replaceProduciton(sym1Production, sym2.getProdcution(), index);
+                    if (production.get(0).getLabel().equals(sym2.getLabel())) {
+                        ArrayList<ArrayList<Symbol>> temp = replaceProductions(sym1Production, sym2.getProductions(), index);
                         sym1.setProductions(temp);
                     }
-                    index ++;
+                    index++;
                 }
             }
 
-            leftRecursionGrammar.addAll(eliminateImmediateRecursion(sym1, sym1.getProdcution()));
+            leftRecursionGrammar.addAll(eliminateImmediateRecursion(sym1, sym1.getProductions()));
         }
-        for(Symbol s : leftRecursionGrammar)
+
+        grammar = leftRecursionGrammar;
+
+        for (Symbol s : leftRecursionGrammar)
             System.out.println(s);
     }
 
@@ -134,25 +186,24 @@ public class ParserGenerator {
         ArrayList<Symbol> eliminated = new ArrayList<>();
         eliminated.add(sym);
 
-        for(ArrayList<Symbol> production : symProduction){
-            if(production.get(0).getLabel() == sym.getLabel()){
+        for (ArrayList<Symbol> production : symProduction) {
+            if (production.get(0).getLabel().equals(sym.getLabel())) {
                 newProd = new ArrayList<>();
-                newSym = new Symbol(sym.getLabel()+"'", newProd);
+                newSym = new Symbol(sym.getLabel() + "'", newProd);
                 flag = true;
                 break;
             }
         }
 
-        if(flag){
-            for(ArrayList<Symbol> production : symProduction){
-                if(production.get(0).getLabel() == sym.getLabel()){
+        if (flag) {
+            for (ArrayList<Symbol> production : symProduction) {
+                if (production.get(0).getLabel().equals(sym.getLabel())) {
                     temp = new ArrayList<>();
                     temp.addAll(production);
                     temp.remove(0);
                     temp.add(newSym);
                     newProd.add(temp);
-                }
-                else{
+                } else {
                     notModified = new ArrayList<>();
                     notModified.addAll(production);
                     notModified.add(newSym);
@@ -171,13 +222,12 @@ public class ParserGenerator {
         return eliminated;
     }
 
-    private ArrayList<ArrayList<Symbol>> replaceProduciton(ArrayList<ArrayList<Symbol>> prod1, ArrayList<ArrayList<Symbol>> prod2, int index) {
+    private ArrayList<ArrayList<Symbol>> replaceProductions(ArrayList<ArrayList<Symbol>> prod1, ArrayList<ArrayList<Symbol>> prod2, int index) {
         ArrayList<ArrayList<Symbol>> tempProd = new ArrayList<>();
         for (int i = 0; i < prod1.size(); i++) {
-            if(i!=index){
+            if (i != index) {
                 tempProd.add(prod1.get(i));
-            }
-            else{
+            } else {
                 for (int j = 0; j < prod2.size(); j++) {
                     ArrayList<Symbol> temp = new ArrayList<>();
                     ArrayList<Symbol> production = prod1.get(i);
@@ -202,58 +252,6 @@ public class ParserGenerator {
         followSets = new HashMap<>();
     }
 
-   private ArrayList<ArrayList<Symbol>> getRightProd(String rightProduction){
-        ArrayList<ArrayList<Symbol>> right = new ArrayList<>();
-        String [] splits = rightProduction.split("\\|"); // split on the or than means we have more than one row
 
-        int terminal = 0;
-        Symbol sym;
-        String temp;
-        int index;
-        for (int i = 0; i < splits.length; i++) {
-            if(splits[i].length()==0){
-                continue;
-            }
-           ArrayList<Symbol> row = new ArrayList<>();
-           String label = "";
-           temp = splits[i].trim();
-           String[] syms = temp.split(" ");
-
-            for (int j = 0; j < syms.length ; j++) {
-                // Non terminal
-                if(syms[j].trim().startsWith("‘")){
-                    index = syms[j].lastIndexOf("’");
-                    if(index == -1){
-                        System.err.println("Wrong Grammar");
-                        exit(0);
-                    }
-                    label = syms[j].trim().substring(1,index);
-                    sym = new Symbol(label);
-                    row.add(sym);
-                }
-                else if(syms[j].trim().equals("\\L")){
-                    label = "epsilon";
-                    sym = new Symbol(label);
-                    row.add(sym);
-                }
-                else{
-                    ArrayList<ArrayList<Symbol>> rightProd = new ArrayList<>();
-                    label = syms[j].trim();
-                    if(!symbols.containsKey(label)){
-                        sym = new Symbol(label, rightProd);
-                    }
-                    else {
-                        sym = symbols.get(label);
-                    }
-
-                    symbols.put(label, sym);
-                    row.add(sym);
-                }
-            }
-            right.add(row);
-       }
-
-       return right;
-   }
 
 }

@@ -1,7 +1,6 @@
 package parsergenerator;
 
 import org.javatuples.Pair;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;

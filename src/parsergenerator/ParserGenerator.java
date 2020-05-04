@@ -32,6 +32,14 @@ public class ParserGenerator {
 
         calculateFollowSets();
 
+        firstSets.forEach((key, value) -> System.out.println("Label: " + key.getLabel() + ", First Set: " + value.toString()));
+
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
+        followSets.forEach((key, value) -> System.out.println("Label: " + key.getLabel() + ", Follow Set: " + value.toString()));
+
         ParseTable parseTable = new ParseTable(firstSets, followSets);
 
         return new Parser(parseTable);
@@ -246,12 +254,156 @@ public class ParserGenerator {
 
     private void calculateFirstSets() {
         firstSets = new HashMap<>();
+
+        HashSet<Symbol> seen = new HashSet<>();
+
+        for (Symbol symbol : grammar) {
+            if (!seen.contains(symbol)) {
+                seen.add(symbol);
+                firstSets.put(symbol, new HashSet<>());
+                firstSet(symbol, seen);
+            }
+        }
+    }
+
+    private void firstSet(Symbol symbol, HashSet<Symbol> seen) {
+        /*  If symbol is terminal then first(symbol) = {symbol} */
+        if (symbol.isTerminal() || symbol.getLabel().equals("\\L")) {
+            /* Add the non-terminal or epsilon to the first sets */
+            firstSets.put(symbol, new HashSet<String>() {{
+                add(symbol.getLabel());
+            }});
+
+            return;
+        }
+
+        ArrayList<ArrayList<Symbol>> productionRule = symbol.getProductions();
+
+        /* Get the first symbol in the rule */
+        productionRule.forEach((rule) -> {
+
+            Symbol child = null;
+            for (int i = 0; i < rule.size(); i++) {
+                child = rule.get(i);
+
+                /* if the child first not computed before */
+                if (!seen.contains(child)) {
+                    seen.add(child);
+                    firstSet(child, seen);
+                }
+
+                /* Add the child first to the parent first */
+                for (String val : firstSets.get(child)) {
+                    if (!firstSets.containsKey(symbol)) {
+                        firstSets.put(symbol, new HashSet<String>() {{
+                            add(val);
+                        }});
+                    } else {
+                        firstSets.get(symbol).add(val);
+                    }
+                }
+
+                /* If the child contains epsilon and not the right most symbol so remove it and continue through the next symbols */
+                if (firstSets.get(symbol).contains("\\L") && i != rule.size() - 1) {
+                    firstSets.get(symbol).remove("\\L");
+                }
+
+                /* Child doesn't contains epsilon or it is the last symbol */
+                else {
+                    break;
+                }
+            }
+        });
+    }
+
+    private void secondRule() {
+        Symbol curr = null;
+        Symbol next = null;
+
+        /* if A -> xBC is a production rule -> everything in FIRST(C) is FOLLOW(B) except epsilon */
+        for (Symbol symbol : grammar)
+            for (ArrayList<Symbol> child : symbol.getProductions())
+                for (int i = 0; i < child.size() - 1; i++) {
+                    /* Checking for the non terminals */
+                    if (child.get(i).isNonTerminal()) {
+                        /* current non terminal */
+                        curr = child.get(i);
+                        next = child.get(i + 1);
+
+                        if (firstSets.containsKey(next)) {
+                            followSets.get(curr).addAll(firstSets.get(next));
+
+                            /* removing epsilon from the follow */
+                            if (followSets.get(curr).contains("\\L")) {
+                                followSets.get(curr).remove("\\L");
+                            }
+                        } else {
+                            if (next.isTerminal()) {
+                                followSets.get(curr).add(next.getLabel());
+                            }
+                        }
+
+                    }
+                }
+    }
+
+    private void thirdRule() {
+        /* If ( A -> αB is a production rule ) or ( A -> αBβ is a production rule and epsilon is in FIRST(β) ) -> everything in FOLLOW(A) is in FOLLOW(B). and repeat until no changes */
+        boolean changes = true, change, epsilon;
+        int i;
+        Symbol curr = null;
+
+        /* repeating till no changes */
+        while (changes) {
+            changes = false;
+            for (Symbol symbol : grammar)
+                for (ArrayList<Symbol> child : symbol.getProductions()) {
+                    /* Iterating from the right most symbol until leftmost or no epsilon in the first set of current symbol */
+                    i = child.size() - 1;
+                    epsilon = true;
+
+                    while (epsilon && i >= 0) {
+                        curr = child.get(i);
+
+                        /* If current symbol is non terminal */
+                        if (curr.isNonTerminal()) {
+                            for (String f : followSets.get(symbol)) {
+                                /* If terminal is not in follow set of current */
+                                if (!followSets.get(curr).contains(f)) {
+                                    changes = true;
+                                    followSets.get(curr).add(f);
+                                }
+                            }
+
+                            epsilon = firstSets.get(curr).contains("\\L");
+                        }
+                        /* Current symbol is terminal */
+                        else {
+                            epsilon = false;
+                        }
+
+                        i--;
+                    }
+                }
+        }
     }
 
     private void calculateFollowSets() {
         followSets = new HashMap<>();
+
+        /* Initializing follow sets for the grammar */
+        for (Symbol symbol : grammar) {
+            followSets.put(symbol, new HashSet<>());
+        }
+
+        /* If S is the start symbol -> $ is in FOLLOW(S) */
+        followSets.get(grammar.get(0)).add("$");
+
+        /* if A -> xBC is a production rule -> everything in FIRST(C) is FOLLOW(B) except epsilon */
+        secondRule();
+
+        /* If ( A -> αB is a production rule ) or ( A -> αBβ is a production rule and epsilon is in FIRST(β) ) -> everything in FOLLOW(A) is in FOLLOW(B). and repeat until no changes */
+        thirdRule();
     }
-
-
 
 }

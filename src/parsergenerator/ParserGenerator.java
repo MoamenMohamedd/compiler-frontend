@@ -24,9 +24,9 @@ public class ParserGenerator {
 
         readProductions(file);
 
-        leftFactorGrammar();
-
         eliminateLeftRecursion();
+
+        leftFactorGrammar();
 
         calculateFirstSets();
 
@@ -95,6 +95,103 @@ public class ParserGenerator {
     }
 
     private void eliminateLeftRecursion() {
+        ArrayList<Symbol> leftRecursionGrammar = new ArrayList<>();
+        int index;
+        for (int i = 0; i < grammar.size(); i++) {
+
+            Symbol sym1 = grammar.get(i);           //Ai
+            ArrayList<ArrayList<Symbol>> sym1Production = sym1.getProdcution();     //production of Ai
+
+            for (int j = 0; j <= i-1; j++) {
+                Symbol sym2 = grammar.get(j);       //Aj
+                index = 0;
+                //Parse the array of production of Ai
+                for(ArrayList<Symbol> production : sym1Production){
+
+                    //Check if the first element in the production is equals to Aj non terminal
+                    //Check is this non terminal has been seen before
+                    if(production.get(0).getLabel() == sym2.getLabel()){
+                        ArrayList<ArrayList<Symbol>> temp = replaceProduciton(sym1Production, sym2.getProdcution(), index);
+                        sym1.setProductions(temp);
+                    }
+                    index ++;
+                }
+            }
+
+            leftRecursionGrammar.addAll(eliminateImmediateRecursion(sym1, sym1.getProdcution()));
+        }
+        for(Symbol s : leftRecursionGrammar)
+            System.out.println(s);
+    }
+
+    private ArrayList<Symbol> eliminateImmediateRecursion(Symbol sym, ArrayList<ArrayList<Symbol>> symProduction) {
+        ArrayList<Symbol> temp;
+        ArrayList<Symbol> notModified;
+        boolean flag = false;
+        Symbol newSym = null;
+        ArrayList<ArrayList<Symbol>> newProd = null;
+        ArrayList<ArrayList<Symbol>> tempProd = new ArrayList<>();
+        ArrayList<Symbol> eliminated = new ArrayList<>();
+        eliminated.add(sym);
+
+        for(ArrayList<Symbol> production : symProduction){
+            if(production.get(0).getLabel() == sym.getLabel()){
+                newProd = new ArrayList<>();
+                newSym = new Symbol(sym.getLabel()+"'", newProd);
+                flag = true;
+                break;
+            }
+        }
+
+        if(flag){
+            for(ArrayList<Symbol> production : symProduction){
+                if(production.get(0).getLabel() == sym.getLabel()){
+                    temp = new ArrayList<>();
+                    temp.addAll(production);
+                    temp.remove(0);
+                    temp.add(newSym);
+                    newProd.add(temp);
+                }
+                else{
+                    notModified = new ArrayList<>();
+                    notModified.addAll(production);
+                    notModified.add(newSym);
+                    tempProd.add(notModified);
+                }
+
+            }
+            Symbol epsilon = new Symbol("epsilon");
+            temp = new ArrayList<>();
+            temp.add(epsilon);
+            newProd.add(temp);
+            sym.setProductions(tempProd);
+            newSym.setProductions(newProd);
+            eliminated.add(newSym);
+        }
+        return eliminated;
+    }
+
+    private ArrayList<ArrayList<Symbol>> replaceProduciton(ArrayList<ArrayList<Symbol>> prod1, ArrayList<ArrayList<Symbol>> prod2, int index) {
+        ArrayList<ArrayList<Symbol>> tempProd = new ArrayList<>();
+        for (int i = 0; i < prod1.size(); i++) {
+            if(i!=index){
+                tempProd.add(prod1.get(i));
+            }
+            else{
+                for (int j = 0; j < prod2.size(); j++) {
+                    ArrayList<Symbol> temp = new ArrayList<>();
+                    ArrayList<Symbol> production = prod1.get(i);
+                    temp.addAll(prod2.get(j));
+
+                    for (int k = 1; k < production.size(); k++) {
+                        temp.add(production.get(k));
+                    }
+                    tempProd.add(temp);
+                }
+            }
+        }
+
+        return tempProd;
     }
 
     private void calculateFirstSets() {
@@ -131,6 +228,11 @@ public class ParserGenerator {
                         exit(0);
                     }
                     label = syms[j].trim().substring(1,index);
+                    sym = new Symbol(label);
+                    row.add(sym);
+                }
+                else if(syms[j].trim().equals("\\L")){
+                    label = "epsilon";
                     sym = new Symbol(label);
                     row.add(sym);
                 }

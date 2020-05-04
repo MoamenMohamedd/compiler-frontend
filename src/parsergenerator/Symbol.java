@@ -45,6 +45,10 @@ public class Symbol {
 
     public void setProductions(ArrayList<ArrayList<Symbol>> productions){ this.productions = productions;}
 
+    public ArrayList<ArrayList<Symbol>> getProdcution(){return this.productions;}
+
+    public String getLabel(){return this.label;}
+
     public boolean isTerminal() {
         return this.isTerminal;
     }
@@ -65,10 +69,10 @@ public class Symbol {
                 for (Symbol symbol : production) {
                     builder.append(symbol.label).append(" ");
                 }
-                builder.append("|");
+                builder.append("| ");
             }
 
-            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|"), "");
+            builder.replace(builder.lastIndexOf("|"), builder.lastIndexOf("|")+1, "");
             return builder.toString();
         }
     }

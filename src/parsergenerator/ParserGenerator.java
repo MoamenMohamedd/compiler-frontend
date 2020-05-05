@@ -96,10 +96,11 @@ public class ParserGenerator {
         ArrayList<ArrayList<Symbol>> right = new ArrayList<>();
         String[] splits = rightProduction.split("\\|"); // split on the or than means we have more than one row
 
-        int terminal = 0;
+        int orIndex = 0;
         Symbol sym;
         String temp;
         int index;
+
         for (int i = 0; i < splits.length; i++) {
             if (splits[i].length() == 0) {
                 continue;
@@ -107,7 +108,22 @@ public class ParserGenerator {
             ArrayList<Symbol> row = new ArrayList<>();
             String label = "";
             temp = splits[i].trim();
-            String[] syms = temp.split(" ");
+            String[] syms;
+            if(temp.equals("\"")){
+                if(orIndex%2==0){
+                    syms = new String[1];
+                    syms[0] = "\"|\"";
+                    orIndex++;
+                }
+                else{
+                    orIndex++;
+                    break;
+                }
+            }
+            else{
+                syms = temp.split(" ");
+            }
+
 
             for (int j = 0; j < syms.length; j++) {
                 // Non terminal

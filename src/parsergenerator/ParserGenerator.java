@@ -117,7 +117,7 @@ public class ParserGenerator {
                 }
                 else{
                     orIndex++;
-                    break;
+                    continue;
                 }
             }
             else{

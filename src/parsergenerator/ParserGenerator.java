@@ -268,7 +268,7 @@ public class ParserGenerator {
 
     private void firstSet(Symbol symbol, HashSet<Symbol> seen) {
         /*  If symbol is terminal then first(symbol) = {symbol} */
-        if (symbol.isTerminal() || symbol.getLabel().equals("\\L")) {
+        if (symbol.isTerminal() || symbol.getLabel().equals("epsilon")) {
             /* Add the non-terminal or epsilon to the first sets */
             firstSets.put(symbol, new HashSet<String>() {{
                 add(symbol.getLabel());
@@ -304,8 +304,8 @@ public class ParserGenerator {
                 }
 
                 /* If the child contains epsilon and not the right most symbol so remove it and continue through the next symbols */
-                if (firstSets.get(symbol).contains("\\L") && i != rule.size() - 1) {
-                    firstSets.get(symbol).remove("\\L");
+                if (firstSets.get(symbol).contains("epsilon") && i != rule.size() - 1) {
+                    firstSets.get(symbol).remove("epsilon");
                 }
 
                 /* Child doesn't contains epsilon or it is the last symbol */
@@ -334,8 +334,8 @@ public class ParserGenerator {
                             followSets.get(curr).addAll(firstSets.get(next));
 
                             /* removing epsilon from the follow */
-                            if (followSets.get(curr).contains("\\L")) {
-                                followSets.get(curr).remove("\\L");
+                            if (followSets.get(curr).contains("epsilon")) {
+                                followSets.get(curr).remove("epsilon");
                             }
                         } else {
                             if (next.isTerminal()) {
@@ -375,7 +375,7 @@ public class ParserGenerator {
                                 }
                             }
 
-                            epsilon = firstSets.get(curr).contains("\\L");
+                            epsilon = firstSets.get(curr).contains("epsilon");
                         }
                         /* Current symbol is terminal */
                         else {

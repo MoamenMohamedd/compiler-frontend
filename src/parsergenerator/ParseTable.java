@@ -44,7 +44,7 @@ public class ParseTable {
         }
 
         terminals.add("$");
-        terminals.remove("\\L");
+        terminals.remove("epsilon");
 
         int count = 0;
         for (String terminal : terminals) {
@@ -78,7 +78,7 @@ public class ParseTable {
                 Symbol firstSymbol = production.get(0);
 
                 if (firstSymbol.isTerminal()) {
-                    if (firstSymbol.getLabel().equals("\\L")) {
+                    if (firstSymbol.getLabel().equals("epsilon")) {
                         HashSet<String> followSet = followSets.get(nonTerminal);
                         for (String terminal : followSet) {
                             int terminalIndex = terminalsIndexes.get(terminal);
@@ -125,6 +125,10 @@ public class ParseTable {
 
         ArrayList<Symbol> production = entry.getValue0().getProduction(entry.getValue1());
         return production.stream().map(Symbol::getLabel).collect(Collectors.toList());
+    }
+
+    public boolean isTerminal(String string){
+        return terminalsIndexes.containsKey(string);
     }
 
     public void print() {

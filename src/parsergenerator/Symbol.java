@@ -51,6 +51,10 @@ public class Symbol {
         return this.productions;
     }
 
+    public ArrayList<Symbol> getProduction(int index) {
+        return this.productions.get(index);
+    }
+
     public String getLabel() {
         return this.label;
     }

@@ -134,11 +134,21 @@ public class ParserGenerator {
                         exit(0);
                     }
                     label = syms[j].trim().substring(1, index);
-                    sym = new Symbol(label);
+                    if (!symbols.containsKey(label)) {
+                        sym = new Symbol(label);
+                    } else {
+                        sym = symbols.get(label);
+                    }
                     row.add(sym);
+                    symbols.put(label,sym);
                 } else if (syms[j].trim().equals("\\L")) {
                     label = "epsilon";
-                    sym = new Symbol(label);
+                    if (!symbols.containsKey(label)) {
+                        sym = new Symbol(label);
+                    } else {
+                        sym = symbols.get(label);
+                    }
+                    symbols.put(label, sym);
                     row.add(sym);
                 } else {
                     ArrayList<ArrayList<Symbol>> rightProd = new ArrayList<>();
@@ -236,7 +246,15 @@ public class ParserGenerator {
                 }
 
             }
-            Symbol epsilon = new Symbol("epsilon");
+            Symbol epsilon;
+            if (!symbols.containsKey("epsilon")) {
+                 epsilon = new Symbol("epsilon");
+                 symbols.put("epsilon",epsilon);
+            } else {
+                 epsilon = symbols.get("epsilon");
+            }
+//            Symbol epsilon = new Symbol("epsilon");
+//            Symbol epsilon = symbols.get("epsilon");
             temp = new ArrayList<>();
             temp.add(epsilon);
             newProd.add(temp);

@@ -129,6 +129,8 @@ public class ParseTable {
 
     public boolean isTerminal(String string){
         return terminalsIndexes.containsKey(string);
+    }public boolean isNonTerminal(String string){
+        return nonTerminalsIndexes.containsKey(string);
     }
 
     public void print() {

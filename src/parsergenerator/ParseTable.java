@@ -13,20 +13,28 @@ public class ParseTable {
     private HashMap<Symbol, HashSet<String>> followSets;
 
     public ParseTable(HashMap<Symbol, HashSet<String>> firstSets, HashMap<Symbol, HashSet<String>> followSets) {
-        this.firstSets = firstSets;
+        this.firstSets = new HashMap<>();
+        for (Map.Entry<Symbol, HashSet<String>> entry : firstSets.entrySet()) {
+            if (entry.getKey().isNonTerminal())
+                this.firstSets.put(entry.getKey(), entry.getValue());
+        }
         this.followSets = followSets;
+
+        System.out.println();
 
         setupTerminals();
 
         setupNonTerminals();
 
         setupProductions();
+
+        print();
     }
 
     private void setupTerminals() {
-        terminalsIndexes = new HashMap<>();
+        terminalsIndexes = new LinkedHashMap<>();
 
-        Set<String> terminals = new HashSet<>();
+        Set<String> terminals = new LinkedHashSet<>();
         for (Set<String> set : firstSets.values()) {
             terminals.addAll(set);
         }
@@ -36,21 +44,26 @@ public class ParseTable {
         }
 
         terminals.add("$");
+        terminals.remove("\\L");
 
         int count = 0;
         for (String terminal : terminals) {
             terminalsIndexes.put(terminal, count++);
         }
 
+        System.out.println("Parse table terminals: " + terminalsIndexes.keySet());
+
     }
 
     private void setupNonTerminals() {
-        nonTerminalsIndexes = new HashMap<>();
+        nonTerminalsIndexes = new LinkedHashMap<>();
 
         int count = 0;
         for (Symbol nonTerminal : firstSets.keySet()) {
             nonTerminalsIndexes.put(nonTerminal.getLabel(), count++);
         }
+
+        System.out.println("Parse table non terminals: " + nonTerminalsIndexes.keySet());
     }
 
     private void setupProductions() {
@@ -65,7 +78,7 @@ public class ParseTable {
                 Symbol firstSymbol = production.get(0);
 
                 if (firstSymbol.isTerminal()) {
-                    if (firstSymbol.getLabel().equals("epsilon")) {
+                    if (firstSymbol.getLabel().equals("\\L")) {
                         HashSet<String> followSet = followSets.get(nonTerminal);
                         for (String terminal : followSet) {
                             int terminalIndex = terminalsIndexes.get(terminal);
@@ -93,7 +106,7 @@ public class ParseTable {
 
             for (String terminal : followSet) {
                 int terminalIndex = terminalsIndexes.get(terminal);
-                if (parseTable[nonTerminalIndex][terminalIndex] != null)
+                if (parseTable[nonTerminalIndex][terminalIndex] == null)
                     parseTable[nonTerminalIndex][terminalIndex] = new Pair<>(null, null); // sync
             }
         }
@@ -112,6 +125,26 @@ public class ParseTable {
 
         ArrayList<Symbol> production = entry.getValue0().getProduction(entry.getValue1());
         return production.stream().map(Symbol::getLabel).collect(Collectors.toList());
+    }
+
+    public void print() {
+        for (String nonTerminal : nonTerminalsIndexes.keySet()) {
+            for (String terminal : terminalsIndexes.keySet()) {
+                Pair<Symbol, Integer> entry = parseTable[nonTerminalsIndexes.get(nonTerminal)][terminalsIndexes.get(terminal)];
+                System.out.println("parseTable[" + nonTerminal + "]" + "[" + terminal + "]" + " = " + printProduction(entry));
+            }
+        }
+    }
+
+    public String printProduction(Pair<Symbol, Integer> production){
+        if (production == null)
+            return "null";
+
+        if (production.getValue0() == null && production.getValue1() == null)
+            return "sync";
+
+        return production.getValue0().toString(production.getValue1());
+
     }
 
     public String getStartSymbol() {

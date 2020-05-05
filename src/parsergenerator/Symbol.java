@@ -87,5 +87,19 @@ public class Symbol {
         }
     }
 
+    public String toString(int productionIndex) {
+        if (isTerminal)
+            return label;
+        else {
+            StringBuilder builder = new StringBuilder();
+            builder.append(label).append(" ::= ");
+            ArrayList<Symbol> production = productions.get(productionIndex);
+            for (Symbol symbol : production) {
+                builder.append(symbol.label).append(" ");
+            }
+            return builder.toString();
+        }
+    }
+
 }
 

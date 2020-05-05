@@ -67,6 +67,7 @@ public class ParserGenerator {
                     rightProd = new ArrayList<>();
                     if (arrayIndex == 0 || !symbols.containsKey(production[0].trim())) {
                         sym = new Symbol(production[0].trim(), rightProd);
+                        symbols.put(production[0].trim(), sym);
                     } else {
                         sym = symbols.get(production[0].trim());
                     }
@@ -143,12 +144,12 @@ public class ParserGenerator {
     }
 
     private void leftFactorGrammar() {
-        ArrayList<Symbol> leftFactoredGrammar = new ArrayList<>();
-        for (Symbol nonTerminal : grammar) {
-            leftFactoredGrammar.addAll(nonTerminal.leftFactorProductions());
-        }
-
-        grammar = leftFactoredGrammar;
+//        ArrayList<Symbol> leftFactoredGrammar = new ArrayList<>();
+//        for (Symbol nonTerminal : grammar) {
+//            leftFactoredGrammar.addAll(nonTerminal.leftFactorProductions());
+//        }
+//
+//        grammar = leftFactoredGrammar;
     }
 
     private void eliminateLeftRecursion() {

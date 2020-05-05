@@ -111,8 +111,8 @@ public class ParserGenerator {
 
             for (int j = 0; j < syms.length; j++) {
                 // Non terminal
-                if (syms[j].trim().startsWith("‘")) {
-                    index = syms[j].lastIndexOf("’");
+                if (syms[j].trim().startsWith("\"")) {
+                    index = syms[j].lastIndexOf("\"");
                     if (index == -1) {
                         System.err.println("Wrong Grammar");
                         exit(0);
@@ -240,7 +240,8 @@ public class ParserGenerator {
                 for (int j = 0; j < prod2.size(); j++) {
                     ArrayList<Symbol> temp = new ArrayList<>();
                     ArrayList<Symbol> production = prod1.get(i);
-                    temp.addAll(prod2.get(j));
+                    if(prod2.get(j).get(0).getLabel() != "epsilon")
+                        temp.addAll(prod2.get(j));
 
                     for (int k = 1; k < production.size(); k++) {
                         temp.add(production.get(k));

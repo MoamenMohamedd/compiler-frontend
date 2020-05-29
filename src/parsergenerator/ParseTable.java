@@ -2,6 +2,8 @@ package parsergenerator;
 
 import org.javatuples.Pair;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -127,24 +129,46 @@ public class ParseTable {
         return production.stream().map(Symbol::getLabel).collect(Collectors.toList());
     }
 
-    public boolean isTerminal(String string){
+    public boolean isTerminal(String string) {
         return terminalsIndexes.containsKey(string);
-    }public boolean isNonTerminal(String string){
+    }
+
+    public boolean isNonTerminal(String string) {
         return nonTerminalsIndexes.containsKey(string);
     }
 
     public void print() {
-        for (String nonTerminal : nonTerminalsIndexes.keySet()) {
-            for (String terminal : terminalsIndexes.keySet()) {
-                Pair<Symbol, Integer> entry = parseTable[nonTerminalsIndexes.get(nonTerminal)][terminalsIndexes.get(terminal)];
-                System.out.println("parseTable[" + nonTerminal + "]" + "[" + terminal + "]" + " = " + printProduction(entry));
+
+        FileWriter writer = null;
+        try {
+            writer = new FileWriter("parseTable.csv");
+            String header = " ," + String.join(",", terminalsIndexes.keySet());
+            writer.write(header);
+            writer.append("\n");
+
+            StringBuilder row = new StringBuilder();
+            for (String nonTerminal : nonTerminalsIndexes.keySet()) {
+                row.append(nonTerminal).append(",");
+                for (String terminal : terminalsIndexes.keySet()) {
+                    Pair<Symbol, Integer> entry = parseTable[nonTerminalsIndexes.get(nonTerminal)][terminalsIndexes.get(terminal)];
+                    String production = printProduction(entry);
+                    System.out.println("parseTable[" + nonTerminal + "]" + "[" + terminal + "]" + " = " + production);
+                    row.append(production).append(",");
+                }
+                writer.write(row.toString());
+                writer.append("\n");
+                row = new StringBuilder();
             }
+
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public String printProduction(Pair<Symbol, Integer> production){
+    public String printProduction(Pair<Symbol, Integer> production) {
         if (production == null)
-            return "null";
+            return " ";
 
         if (production.getValue0() == null && production.getValue1() == null)
             return "sync";

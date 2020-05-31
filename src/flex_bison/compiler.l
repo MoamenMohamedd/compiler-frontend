@@ -22,7 +22,7 @@ NUM         {DIGIT}+|{DIGIT}+\.{DIGIT}+([E]{DIGITS})?
 "*"|"/"         {return (MULOP);}
 {ID}            {yylval.id = strdup(yytext); return (ID);}
 {NUM}           {yylval.number = atof(yytext); return (NUM);} 
-"\n"            { line_num += 1; }
+"\n"            { line_num += 1;}
 [ \t]          ;
 .               {perror(yytext);}
 %%

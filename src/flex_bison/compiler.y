@@ -27,6 +27,8 @@
 %token IF_T ELSE WHILE_T 
 %token ASSIGN RELOP ADDOP MULOP
 
+%left ADDOP
+%left MULOP
 
 %%
 
@@ -50,30 +52,36 @@ STATEMENT:
 
 DECLARATION:
     PRIMITIVE_TYPE ID ';'{
-        cout << "declaration statement with id: " << $2 << endl
+        cout << "id: " << $2 << endl ;
+        cout << "End of declaration statement" << endl
     }
     ;
 
 PRIMITIVE_TYPE:
-    INT 
-    | FLOAT
+    INT {
+        cout << "Consumed Int " << endl ;
+    }
+    | FLOAT{
+        cout  << "Consumed Float " << endl ;
+    }
     ;
 
 IF:
-    IF_T '(' EXPRESSION ')' '{' STATEMENT '}' ELSE '{' STATEMENT '}'{
-        cout << "If else statement" << endl
+    {cout << "Consume IF" << endl ;}
+    IF_T '(' EXPRESSION ')' {cout << "End of the if expression " << endl;} '{' STATEMENT '}' { cout << "Consume Else " << endl; } ELSE '{' STATEMENT '}'{
+        cout << "End of If else statement" << endl
     }
     ;
 
 WHILE:
     WHILE_T '(' EXPRESSION ')' '{' STATEMENT '}'{
-        cout << "While statement" << endl
+        cout << "End of While statement" << endl
     }
     ;
 
 ASSIGNMENT:
     ID ASSIGN EXPRESSION ';'{
-        cout << "Assignment statement of ID = " << $1 << endl
+        cout << " Assignment statement of ID = " << $1 << endl ;
     }
     ;
 
@@ -92,8 +100,11 @@ TERM:
     | TERM MULOP FACTOR
     ;
 FACTOR:
-    ID
-    | NUM 
+    ID{
+        cout << "ID = " << $1 << endl;
+        free($1);
+    }
+    | NUM
     | '(' EXPRESSION ')'
     ;
 

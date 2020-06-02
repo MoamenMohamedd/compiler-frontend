@@ -1,27 +1,29 @@
 %{
   #include "compiler.tab.h"
-  int line_num = 1;
+  int line_num = 0;
 %}
 
 LETTER      [a-zA-Z]
 DIGIT       [0-9]
 DIGITS      DIGIT+
 ID          {LETTER}({LETTER}|{DIGIT})*
-NUM         {DIGIT}+|{DIGIT}+\.{DIGIT}+([E]{DIGITS})?
+INT         {DIGIT}+
+FLOAT       {DIGIT}+\.{DIGIT}+([E]{DIGITS})?
 
 %%
-"int"             {return (INT);}
-"float"           {return (FLOAT);}
+"int"             {return (INT_WORD);}
+"float"           {return (FLOAT_WORD);}
 "=="|"!="|">"|">="|"<"|"<="                 {return (RELOP);}
 "="             {return (ASSIGN);}
-"if"            {return (IF_T);}
+"if"            {return (IF_WORD);}
 "else"          {return (ELSE);}
-"while"         {return (WHILE_T);}
+"while"         {return (WHILE_WORD);}
 [;,\(\)\{\}]    { return (yytext[0]); }
 "+"|"-"         {return (ADDOP);}
 "*"|"/"         {return (MULOP);}
 {ID}            {yylval.id = strdup(yytext); return (ID);}
-{NUM}           {yylval.number = atof(yytext); return (NUM);} 
+{INT}           {yylval.ival = atoi(yytext); return (INT);} 
+{FLOAT}         {yylval.fval = atof(yytext); return (FLOAT);}
 "\n"            { line_num += 1;}
 [ \t]          ;
 .               {perror(yytext);}

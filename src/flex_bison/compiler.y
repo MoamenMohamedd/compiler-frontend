@@ -16,15 +16,17 @@
 %}
 
 %union {
-    float number;
+    float fval;
+    int ival;
     char* id;
 }
 
 
-%token <number> NUM
+%token <ival> INT
+%token <fval> FLOAT
 %token <id> ID
-%token INT FLOAT
-%token IF_T ELSE WHILE_T 
+%token INT_WORD FLOAT_WORD
+%token IF_WORD ELSE WHILE_WORD 
 %token ASSIGN RELOP ADDOP MULOP
 
 %left ADDOP
@@ -58,23 +60,23 @@ DECLARATION:
     ;
 
 PRIMITIVE_TYPE:
-    INT {
+    INT_WORD {
         cout << "Consumed Int " << endl ;
     }
-    | FLOAT{
+    | FLOAT_WORD{
         cout  << "Consumed Float " << endl ;
     }
     ;
 
 IF:
     {cout << "Consume IF" << endl ;}
-    IF_T '(' EXPRESSION ')' {cout << "End of the if expression " << endl;} '{' STATEMENT '}' { cout << "Consume Else " << endl; } ELSE '{' STATEMENT '}'{
+    IF_WORD '(' EXPRESSION ')' {cout << "End of the if expression " << endl;} '{' STATEMENT '}' { cout << "Consume Else " << endl; } ELSE '{' STATEMENT '}'{
         cout << "End of If else statement" << endl
     }
     ;
 
 WHILE:
-    WHILE_T '(' EXPRESSION ')' '{' STATEMENT '}'{
+    WHILE_WORD '(' EXPRESSION ')' '{' STATEMENT '}'{
         cout << "End of While statement" << endl
     }
     ;
@@ -104,7 +106,8 @@ FACTOR:
         cout << "ID = " << $1 << endl;
         free($1);
     }
-    | NUM
+    | INT
+    | FLOAT
     | '(' EXPRESSION ')'
     ;
 

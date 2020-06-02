@@ -1,6 +1,6 @@
 %{
   #include "compiler.tab.h"
-  int line_num = 0;
+  int line_num = 1;
 %}
 
 LETTER      [a-zA-Z]
@@ -18,7 +18,7 @@ FLOAT       {DIGIT}+\.{DIGIT}+([E]{DIGITS})?
 "if"            {return (IF_WORD);}
 "else"          {return (ELSE);}
 "while"         {return (WHILE_WORD);}
-[;,\(\)\{\}]    { return (yytext[0]); }
+[;,\(\)\{\}]    {return (yytext[0]); }
 "+"|"-"         {return (ADDOP);}
 "*"|"/"         {return (MULOP);}
 {ID}            {yylval.id = strdup(yytext); return (ID);}

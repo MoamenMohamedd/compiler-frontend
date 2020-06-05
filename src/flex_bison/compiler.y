@@ -28,24 +28,25 @@
 
   map<string, pair<int,type_enum>> symtable;
   vector<string> codeList;
-  int varaiblesNum = 1;
+  int varNumber = 1;
   int labelsCount = 0;
   string outfileName ;
 
-  ofstream fout("output.j");	/* file for writing output */
+  ofstream fout("output.j");
+  	
   void generateHeader(void);	/* generate  header for class to be able to compile the code*/
   void generateFooter(void);	/* generate  footer for class to be able to compile the code*/
 
-  void define_var(string name, int type);
-  bool checkID(string name);
-  string genLabel();
-  string getLabel(int n);
-  void backpatch(vector<int> *lists, int ind);
-  void arithCast(int from , int to, string op);
-  void writeCode(string x);
-  void printCode(void);
-  string getOp(string op);
-  vector<int> * merge(vector<int> *list1, vector<int> *list2);
+  void define_var(string name, int type);                       //define a new variable
+  bool checkID(string name);                                    //check for the id in the symtable
+  string genNewLabel();                                         //generate a new label
+  string getLabel(int n);                                       //get the label
+  void backpatch(vector<int> *lists, int ind);                  //
+  void arithOperation(int from , int to, string op);            //to write the aithamtic operation bytecode
+  void genByteCode(string x);                                   //write the bytecode in the codelist vector
+  void writeToFile(void);                                         //write the code to out[ut file
+  string getOperand(string op);                                 //get operand from header file
+  vector<int> * merge(vector<int> *list1, vector<int> *list2);  //merge two lists
 
 %}
 
@@ -63,7 +64,7 @@
     char* opval;
     int bval;
 	struct {
-		vector<int> *trueList, *falseList; //no need for next because every if has else
+		vector<int> *trueList, *falseList;
 	} bexpr_type;
 	struct {
 		vector<int> *nextList;
@@ -105,7 +106,7 @@ method_body:
 	{
 		backpatch($2.nextList,$3);
 		generateFooter();
-        printCode();
+        writeToFile();
         cout << "Done reading file"<<endl;
 	}
 	;
@@ -122,7 +123,7 @@ statement_list:
 marker:
 {
 	$$ = labelsCount;
-	writeCode(genLabel() + ":");
+	genByteCode(genNewLabel() + ":");
 }
 ;
 
@@ -154,7 +155,7 @@ primitive_type:
 goto:
 {
 	$$ = codeList.size();
-	writeCode("goto ");
+	genByteCode("goto ");
 }
 ;
 
@@ -170,7 +171,7 @@ if:
 
 while:
     marker WHILE_WORD '(' bool_expression ')' '{' marker statement_list '}'{
-        writeCode("goto " + getLabel($1));
+        genByteCode("goto " + getLabel($1));
 		backpatch($8.nextList,$1);
 		backpatch($4.trueList,$7);
 		$$.nextList = $4.falseList;
@@ -180,26 +181,24 @@ while:
 assignment:
     ID ASSIGN expression ';'{
         string str($1);
-		/* after expression finishes, its result should be on top of stack. 
-		we just store the top of stack to the identifier*/
 		if(checkID(str))
 		{
 			if($3 == symtable[str].second)
 			{
 				if($3 == INT_T || $3 == BOOL_T)
 				{
-					writeCode("istore " + to_string(symtable[str].first));
+					genByteCode("istore " + to_string(symtable[str].first));
 				}else if ($3 == FLOAT_T)
 				{
-					writeCode("fstore " + to_string(symtable[str].first));
+					genByteCode("fstore " + to_string(symtable[str].first));
 				}
 			}
 			else
 			{
-				yyerror("Different types in expression. Not supported yet");
+				yyerror("This type is not supported");
 			}
 		}else{
-			string err = "identifier: "+str+" isn't declared in this scope";
+			string err = "ID: "+str+" isn't declared in this scope";
 			yyerror(err.c_str());
 		};
     }
@@ -211,12 +210,12 @@ expression:
     ;
 
 arth_expression:
-    arth_expression ADDOP term { arithCast($1, $3, string($2)); }
+    arth_expression ADDOP term { arithOperation($1, $3, string($2)); }
     | term { $$ = $1; }
     ;
 
 term:
-    term MULOP factor { arithCast($1, $3, string($2)); }
+    term MULOP factor { arithOperation($1, $3, string($2)); }
     | factor { $$ = $1; }
     ;
 
@@ -229,11 +228,11 @@ factor:
         $$ = symtable[str].second;
         if($$ == INT_T || $$ == BOOL_T)
         {
-          writeCode("iload " + to_string(symtable[str].first));
+          genByteCode("iload " + to_string(symtable[str].first));
         }
         else if ($$ == FLOAT_T)
         {
-          writeCode("fload " + to_string(symtable[str].first));
+          genByteCode("fload " + to_string(symtable[str].first));
         }
       }
       else
@@ -243,8 +242,8 @@ factor:
         $$ = ERROR_T;
       }
     }
-    | INT { $$ = INT_T; writeCode("ldc " + to_string($1));}
-    | FLOAT {$$ = FLOAT_T; writeCode("ldc " + to_string($1));}
+    | INT { $$ = INT_T; genByteCode("ldc " + to_string($1));}
+    | FLOAT {$$ = FLOAT_T; genByteCode("ldc " + to_string($1));}
     | '(' arth_expression ')'
     ;
 
@@ -257,13 +256,13 @@ bool_expression:
 			$$.trueList = new vector<int> ();
 			$$.trueList->push_back(codeList.size());
 			$$.falseList = new vector<int>();
-			writeCode("goto ");
+			genByteCode("goto ");
 		}else
 		{
 			$$.trueList = new vector<int> ();
 			$$.falseList= new vector<int>();
 			$$.falseList->push_back(codeList.size());
-			writeCode("goto ");
+			genByteCode("goto ");
 		}
 	}
     | bool_expression BINOP marker bool_expression{
@@ -286,8 +285,8 @@ bool_expression:
 		$$.trueList ->push_back (codeList.size());
 		$$.falseList = new vector<int>();
 		$$.falseList->push_back(codeList.size()+1);
-		writeCode(getOp(op)+ " ");
-		writeCode("goto ");
+		genByteCode(getOperand(op)+ " ");
+		genByteCode("goto ");
     }
     ;
 
@@ -318,28 +317,28 @@ void yyerror(const char *s) {
 
 void generateHeader()
 {
-	writeCode(".source " + outfileName);
-	writeCode(".class public test\n.super java/lang/Object\n"); //code for defining class
-	writeCode(".method public <init>()V");
-	writeCode("aload_0");
-	writeCode("invokenonvirtual java/lang/Object/<init>()V");
-	writeCode("return");
-	writeCode(".end method\n");
-	writeCode(".method public static main([Ljava/lang/String;)V");
-	writeCode(".limit locals 100\n.limit stack 100");
+	genByteCode(".source " + outfileName);
+	genByteCode(".class public test\n.super java/lang/Object\n"); //code for defining class
+	genByteCode(".method public <init>()V");
+	genByteCode("aload_0");
+	genByteCode("invokenonvirtual java/lang/Object/<init>()V");
+	genByteCode("return");
+	genByteCode(".end method\n");
+	genByteCode(".method public static main([Ljava/lang/String;)V");
+	genByteCode(".limit locals 100\n.limit stack 100");
 
 	/* generate temporal vars for syso*/
 	define_var("1syso_int_var",INT_T);
 	define_var("1syso_float_var",FLOAT_T);
 
 	/*generate line*/
-	writeCode(".line 1");
+	genByteCode(".line 1");
 }
 
 void generateFooter()
 {
-	writeCode("return");
-	writeCode(".end method");
+	genByteCode("return");
+	genByteCode(".end method");
 }
 
  void define_var(string name, int type)
@@ -350,12 +349,12 @@ void generateFooter()
     }
     else{
         if(type == INT_T){
-            writeCode("iconst_0\nistore " + to_string(varaiblesNum));
+            genByteCode("iconst_0\nistore " + to_string(varNumber));
         }
         else if(type == FLOAT_T){
-            writeCode("fconst_0\nfstore " + to_string(varaiblesNum));
+            genByteCode("fconst_0\nfstore " + to_string(varNumber));
         }
-        symtable[name] = make_pair(varaiblesNum++, (type_enum)type);
+        symtable[name] = make_pair(varNumber++, (type_enum)type);
     }
 }
 
@@ -366,7 +365,7 @@ bool checkID(string name){
     return true; 
 }
 
-string genLabel()
+string genNewLabel()
 {
 	return "L_"+to_string(labelsCount++);
 }
@@ -387,12 +386,12 @@ void backpatch(vector<int> *lists, int ind)
 	
 }
 
-void writeCode(string x)
+void genByteCode(string x)
 {
 	codeList.push_back(x);
 }
 
-void printCode(void)
+void writeToFile(void)
 {
 	for ( int i = 0 ; i < codeList.size() ; i++)
 	{
@@ -400,25 +399,25 @@ void printCode(void)
 	}
 }
 
-void arithCast(int from , int to, string op)
+void arithOperation(int from , int to, string op)
 {
 	if(from == to)
 	{
 		if(from == INT_T)
 		{
-			writeCode("i" + getOp(op));
+			genByteCode("i" + getOperand(op));
 		}else if (from == FLOAT_T)
 		{
-			writeCode("f" + getOp(op));
+			genByteCode("f" + getOperand(op));
 		}
 	}
 	else
 	{
-		yyerror("cast not implemented yet");
+		yyerror("Cast not implemented yet");
 	}
 }
 
-string getOp(string op)
+string getOperand(string op)
 {
 	if(inst_list.find(op) != inst_list.end())
 	{

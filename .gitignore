@@ -1,3 +1,10 @@
 .idea/
 out/
 compiler.iml
+.classpath
+.project
+compiler-frontend.iml
+bin/
+src/javabytecodegenerator/jasmin.jar
+src/javabytecodegenerator/.idea/
+src/javabytecodegenerator/jasmin-2.4/

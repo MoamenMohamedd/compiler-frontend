@@ -318,7 +318,7 @@ void yyerror(const char *s) {
 
 void generateHeader()
 {
-	writeCode(".source " + outfileName);
+	writeCode(".source compiler");
 	writeCode(".class public test\n.super java/lang/Object\n"); //code for defining class
 	writeCode(".method public <init>()V");
 	writeCode("aload_0");

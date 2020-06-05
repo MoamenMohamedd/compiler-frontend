@@ -1,0 +1,15 @@
+float  count ;
+int pass;
+int x;
+x = 2;
+int sum;
+boolean z;
+while (pass != 10)  {
+pass = pass + 1 ;
+}
+if (x <= 0 || pass == 2) {
+count = count + 1.234;
+}
+else{
+sum = sum + x;
+}
